@@ -73,7 +73,7 @@
 
     /* ── Bloom bar ── */
     .bloom-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
-    .bloom-label { font-size: 0.72rem; color: var(--gray-400); width: 52px; }
+    .bloom-label { font-size: 0.72rem; color: var(--gray-400); width: 68px; }
     .bloom-track { flex: 1; height: 14px; background: var(--gray-100); border-radius: 7px; overflow: hidden; }
     .bloom-fill {
       height: 100%; border-radius: 7px; display: flex; align-items: center;
@@ -147,6 +147,11 @@
         <h2>Loading...</h2>
         <p>Select a region on the map or browse below</p>
       </div>
+      <div style="padding:8px 16px;border-bottom:1px solid var(--gray-200)">
+        <input type="text" id="search-box" placeholder="Search city or spot name..."
+          oninput="filterSidebar(this.value)"
+          style="width:100%;padding:8px 12px;border:1px solid var(--gray-200);border-radius:8px;font-size:0.85rem">
+      </div>
       <div class="sidebar-content" id="sidebar-content">
         <div class="loading">Loading forecast data...</div>
       </div>
@@ -207,12 +212,66 @@ function sakuraRadius(bloomRate, fullRate) {
   return 4;
 }
 
+// Returns human-readable stage name from the bloom/full rates
+function growthStage(bloomRate) {
+  if (bloomRate >= 100) return 'First bloom!';
+  if (bloomRate >= 85) return 'Buds opening';
+  if (bloomRate >= 60) return 'Buds swelling';
+  return 'Bud stage';
+}
+function floweringStage(fullRate) {
+  if (fullRate >= 100) return 'Full bloom!';
+  if (fullRate >= 90) return 'Nearly full';
+  if (fullRate >= 70) return '70% flowering';
+  if (fullRate >= 40) return '50% flowering';
+  if (fullRate >= 20) return '30% flowering';
+  if (fullRate > 0) return 'Just started';
+  return 'Not yet';
+}
+
+// Map city status text to dot color/size for the overview map
+function statusToColor(status) {
+  if (status.includes('Full bloom') || status.includes('best')) return '#be185d';
+  if (status.includes('Falling') || status.includes('scattering')) return '#f9a8d4';
+  if (status.includes('Blooming') || status.includes('Approaching')) return '#ec4899';
+  if (status.includes('Coming') || status.includes('soon')) return '#86efac';
+  if (status.includes('Ended')) return '#d4d4d4';
+  return '#e5e5e5';
+}
+function statusToRadius(status) {
+  if (status.includes('Full bloom') || status.includes('best')) return 10;
+  if (status.includes('Blooming') || status.includes('Falling')) return 8;
+  if (status.includes('Coming') || status.includes('soon')) return 6;
+  return 5;
+}
+
 function statusText(status) {
   if (status.includes('Full bloom') || status.includes('mankai') || status.includes('best')) return { text: status.split('—')[0].trim(), cls: 'peak' };
   if (status.includes('bloom') || status.includes('Bloom') || status.includes('咲き')) return { text: status.split('—')[0].trim(), cls: 'bloom' };
   if (status.includes('Coming') || status.includes('soon') || status.includes('つぼみ') || status.includes('Bud')) return { text: status.split('—')[0].trim(), cls: 'soon' };
   return { text: status.split('—')[0].trim(), cls: 'ended' };
 }
+
+// ── City coordinates for map markers (48 JMA observation cities) ──
+const CITY_COORDS = {
+  "Wakkanai":[45.415,141.673],"Asahikawa":[43.771,142.365],"Abashiri":[44.02,144.273],
+  "Kushiro":[42.985,144.381],"Obihiro":[42.92,143.197],"Sapporo":[43.062,141.354],
+  "Muroran":[42.315,140.974],"Hakodate":[41.769,140.729],
+  "Aomori":[40.824,140.74],"Morioka":[39.702,141.153],"Sendai":[38.268,140.872],
+  "Akita":[39.717,140.103],"Yamagata":[38.256,140.339],"Fukushima":[37.75,140.468],
+  "Mito":[36.366,140.471],"Utsunomiya":[36.549,139.87],"Maebashi":[36.391,139.061],
+  "Kumagaya":[36.147,139.389],"Choshi":[35.735,140.827],"Tokyo":[35.689,139.692],
+  "Yokohama":[35.448,139.642],"Kofu":[35.662,138.568],"Nagano":[36.651,138.181],
+  "Nagoya":[35.18,136.906],"Gifu":[35.423,136.761],"Shizuoka":[34.976,138.383],"Tsu":[34.73,136.509],
+  "Niigata":[37.902,139.024],"Toyama":[36.695,137.211],"Kanazawa":[36.594,136.625],"Fukui":[36.054,136.222],
+  "Osaka":[34.694,135.502],"Hikone":[35.276,136.246],"Kyoto":[35.012,135.768],
+  "Kobe":[34.691,135.183],"Nara":[34.685,135.833],"Wakayama":[34.226,135.168],
+  "Hiroshima":[34.397,132.46],"Tottori":[35.501,134.235],"Matsue":[35.472,133.051],
+  "Okayama":[34.662,133.935],"Shimonoseki":[33.95,130.941],
+  "Tokushima":[34.066,134.559],"Takamatsu":[34.34,134.043],"Matsuyama":[33.842,132.766],"Kochi":[33.559,133.531],
+  "Fukuoka":[33.59,130.402],"Saga":[33.263,130.301],"Nagasaki":[32.745,129.873],
+  "Kumamoto":[32.803,130.707],"Oita":[33.238,131.613],"Miyazaki":[31.911,131.424],"Kagoshima":[31.596,130.557],
+};
 
 // ── Mode switching ──
 function setMode(m) {
@@ -233,11 +292,19 @@ async function loadSakura() {
     if (!sakuraData) sakuraData = await api('/api/sakura/forecast');
     clearMarkers();
 
-    // Add city markers to map
+    // Plot all 48 cities on map immediately
     for (const region of sakuraData.regions) {
       for (const city of region.cities) {
-        // We need lat/lon — use prefCode to load spots
-        // For now, show cities in sidebar; map loads when prefecture selected
+        const coords = CITY_COORDS[city.cityName];
+        if (!coords) continue;
+        const color = statusToColor(city.status);
+        const radius = statusToRadius(city.status);
+        const marker = L.circleMarker(coords, {
+          radius, fillColor: color, color: 'white', weight: 2, fillOpacity: 0.9,
+        }).addTo(mapInstance);
+        marker.bindPopup(`<b>${city.cityName}</b> (${city.prefName})<br>${city.status}<br>Bloom: ${fmtDate(city.bloom.forecast)}${city.bloom.observation ? ' → '+fmtDate(city.bloom.observation) : ''}<br>Full bloom: ${fmtDate(city.fullBloom.forecast)}${city.fullBloom.observation ? ' → '+fmtDate(city.fullBloom.observation) : ''}`);
+        marker.on('click', () => loadPrefSpots(city.prefCode, city.prefName));
+        markers.push(marker);
       }
     }
 
@@ -299,16 +366,16 @@ async function loadPrefSpots(prefCode, prefName) {
       const jma = data.jmaStation;
       html += `<div class="spot-item" style="background:var(--pink-light)">
         <h4>JMA Station: ${jma.name}</h4>
-        <div class="bloom-row"><span class="bloom-label">Bloom</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(jma.bloomRate,100)}%">${jma.bloomRate}%</div></div></div>
-        <div class="bloom-row"><span class="bloom-label">Full bloom</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(jma.fullRate,100)}%">${jma.fullRate}%</div></div></div>
+        <div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(jma.bloomRate,100)}%">${jma.bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(jma.bloomRate)}</span></div>
+        <div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(jma.fullRate,100)}%">${jma.fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(jma.fullRate)}</span></div>
       </div>`;
     }
     for (const spot of data.spots) {
       html += `<div class="spot-item" onclick="flyToSpot(${spot.lat},${spot.lon},'${spot.name.replace(/'/g,"\\'")}',${spot.bloomRate},${spot.fullRate},'${spot.status.replace(/'/g,"\\'")}')">
         <h4>${spot.name}</h4>
-        <div class="bloom-row"><span class="bloom-label">Bloom</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(spot.bloomRate,100)}%">${spot.bloomRate}%</div></div></div>
-        <div class="bloom-row"><span class="bloom-label">Full</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(spot.fullRate,100)}%">${spot.fullRate}%</div></div></div>
-        <div class="sub" style="margin-top:4px">Bloom: ${fmtDate(spot.bloomForecast)} → Full: ${fmtDate(spot.fullBloomForecast)}</div>
+        <div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(spot.bloomRate,100)}%">${spot.bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(spot.bloomRate)}</span></div>
+        <div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(spot.fullRate,100)}%">${spot.fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(spot.fullRate)}</span></div>
+        <div class="sub" style="margin-top:4px">Forecast bloom: ${fmtDate(spot.bloomForecast)} → Full bloom: ${fmtDate(spot.fullBloomForecast)}</div>
       </div>`;
     }
     $('sidebar-content').innerHTML = html;
@@ -448,6 +515,15 @@ function updateLegend(type) {
       <div class="legend-row"><div class="legend-dot" style="background:#fdba74"></div> Turning</div>
       <div class="legend-row"><div class="legend-dot" style="background:#e5e5e5"></div> Not yet / ended</div>`;
   }
+}
+
+// ── Search/filter ──
+function filterSidebar(query) {
+  const q = query.toLowerCase();
+  document.querySelectorAll('.spot-item').forEach(el => {
+    const text = el.textContent.toLowerCase();
+    el.style.display = text.includes(q) ? '' : 'none';
+  });
 }
 
 // ── Init ──
