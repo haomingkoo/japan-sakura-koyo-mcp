@@ -1,0 +1,51 @@
+{
+  "name": "japan-sakura-koyo-mcp",
+  "version": "0.1.0",
+  "description": "Cherry blossom & autumn leaves forecast for Japan — 1,700+ spots with real-time bloom data, weather, and trip planning. MCP server powered by Japan Meteorological Corporation data.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "japan-sakura-koyo-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "node --watch --enable-source-maps src/index.ts",
+    "build": "tsc && chmod +x dist/index.js",
+    "start": "node dist/index.js",
+    "start:http": "node dist/index.js --http",
+    "test": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "sakura",
+    "cherry-blossom",
+    "koyo",
+    "autumn-leaves",
+    "japan",
+    "forecast",
+    "travel",
+    "jma",
+    "bloom",
+    "hanami",
+    "momiji",
+    "kawazu",
+    "weather",
+    "japan-travel",
+    "cherry-blossom-forecast",
+    "autumn-leaves-forecast"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "cheerio": "^1.2.0",
+    "express": "^5.2.1",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.5.2",
+    "typescript": "^6.0.2",
+    "vitest": "^4.1.3"
+  }
+}
