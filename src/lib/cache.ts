@@ -3,7 +3,7 @@ interface CacheEntry<T> {
   expires: number;
 }
 
-const MAX_CACHE_SIZE = 500;
+const MAX_CACHE_SIZE = 10_000;
 
 export class Cache {
   private store = new Map<string, CacheEntry<unknown>>();

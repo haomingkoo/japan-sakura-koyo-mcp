@@ -316,7 +316,7 @@ async function main() {
 
 const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
 const RATE_LIMIT_MAX = 60; // 60 requests per minute per IP
-const MAX_SESSIONS = 1_000;
+const MAX_SESSIONS = 10_000;
 const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 
 const ipRequestCounts = new Map<string, { count: number; resetAt: number }>();
