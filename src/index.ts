@@ -296,6 +296,40 @@ function formatCityResults(cities: SakuraCity[]): string {
 
 // ─── Server startup ──────────────────────────────────────────────────────────
 
+// ─── Usage stats ─────────────────────────────────────────────────────────────
+
+const stats = {
+  startedAt: new Date().toISOString(),
+  totalRequests: 0,
+  totalToolCalls: 0,
+  toolCalls: {} as Record<string, number>,
+  uniqueIps: new Set<string>(),
+
+  recordRequest(ip: string) {
+    this.totalRequests++;
+    this.uniqueIps.add(ip);
+  },
+  recordToolCall(tool: string) {
+    this.totalToolCalls++;
+    this.toolCalls[tool] = (this.toolCalls[tool] ?? 0) + 1;
+  },
+  toJSON() {
+    return {
+      startedAt: this.startedAt,
+      uptime: Math.floor((Date.now() - new Date(this.startedAt).getTime()) / 1000),
+      totalRequests: this.totalRequests,
+      totalToolCalls: this.totalToolCalls,
+      uniqueUsers: this.uniqueIps.size,
+      toolCalls: this.toolCalls,
+    };
+  },
+};
+
+// Log stats every hour
+setInterval(() => {
+  logger.info(`Stats: ${JSON.stringify(stats.toJSON())}`);
+}, 60 * 60 * 1000).unref();
+
 const isHttpMode = process.argv.includes("--http") || !!process.env.PORT;
 
 // Register tools on the module-level server (for stdio mode)
@@ -371,7 +405,10 @@ async function startHttpServer() {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id");
+    res.setHeader("Access-Control-Expose-Headers", "mcp-session-id");
     if (req.method === "OPTIONS") { res.writeHead(204).end(); return; }
+
+    stats.recordRequest(clientIp);
 
     // Rate limit (except health check)
     if (url.pathname !== "/health" && isRateLimited(clientIp)) {
@@ -387,12 +424,32 @@ async function startHttpServer() {
         server: "japan-sakura-koyo-mcp",
         version: "0.1.0",
         activeSessions: transports.size,
+        ...stats.toJSON(),
       }));
+      return;
+    }
+
+    if (url.pathname === "/stats") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify(stats.toJSON(), null, 2));
       return;
     }
 
     if (url.pathname === "/mcp") {
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
+
+      // Handle DELETE (session close)
+      if (req.method === "DELETE") {
+        if (sessionId && transports.has(sessionId)) {
+          const transport = transports.get(sessionId)!;
+          await transport.handleRequest(req, res);
+          transports.delete(sessionId);
+          sessionLastActive.delete(sessionId);
+        } else {
+          res.writeHead(204).end();
+        }
+        return;
+      }
 
       // Reuse existing session
       if (sessionId && transports.has(sessionId)) {
@@ -408,7 +465,7 @@ async function startHttpServer() {
         return;
       }
 
-      // New session
+      // New session — create transport and connect a fresh server
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => crypto.randomUUID(),
       });
