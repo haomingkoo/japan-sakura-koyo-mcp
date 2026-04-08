@@ -1,8 +1,7 @@
 import * as cheerio from "cheerio";
 import { cache, TTL } from "./cache.js";
 import { logger } from "./logger.js";
-
-const USER_AGENT = "japan-sakura-koyo-mcp/0.1.0";
+import { safeFetch } from "./fetch.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -157,12 +156,7 @@ export async function getSakuraForecast(): Promise<SakuraForecastResult> {
   const cacheKey = "sakura-forecast:nkishou";
   return cache.getOrFetch(cacheKey, TTL.FORECAST, async () => {
     logger.info("Fetching sakura forecast from n-kishou API");
-    const res = await fetch(NKISHOU_SAKURA_API, {
-      headers: { "User-Agent": USER_AGENT },
-    });
-    if (!res.ok) {
-      throw new Error(`n-kishou API error: ${res.status} ${res.statusText}`);
-    }
+    const res = await safeFetch(NKISHOU_SAKURA_API);
     const data = await res.json();
     return parseNkishouResponse(data);
   });
@@ -237,10 +231,7 @@ export async function getSakuraSpots(prefCode: string): Promise<SakuraSpotResult
   return cache.getOrFetch(cacheKey, TTL.SPOTS, async () => {
     logger.info(`Fetching sakura spots for prefecture ${prefCode}`);
     const url = `${NKISHOU_SPOTS_API}?type=sakura&filter_mode=forecast&area_mode=pref&area_code=${prefCode}&sort_code=0`;
-    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
-    if (!res.ok) {
-      throw new Error(`Spots API error: ${res.status} ${res.statusText}`);
-    }
+    const res = await safeFetch(url);
     const data = await res.json();
     return parseSpotsResponse(data, prefCode);
   });
@@ -384,12 +375,7 @@ export async function getSakuraForecastWeathermap(): Promise<WeathermapEntry[]> 
   const cacheKey = "sakura-forecast:weathermap";
   return cache.getOrFetch(cacheKey, TTL.FORECAST, async () => {
     logger.info("Fetching sakura forecast from weathermap.jp");
-    const res = await fetch("https://sakura.weathermap.jp/en.php", {
-      headers: { "User-Agent": USER_AGENT },
-    });
-    if (!res.ok) {
-      throw new Error(`Weathermap fetch error: ${res.status}`);
-    }
+    const res = await safeFetch("https://sakura.weathermap.jp/en.php");
     const html = await res.text();
     return parseWeathermapHtml(html);
   });
@@ -533,12 +519,11 @@ export async function getKawazuForecast(): Promise<KawazuResult> {
     logger.info("Fetching Kawazu cherry blossom data");
 
     const [infoRes, listRes] = await Promise.all([
-      fetch(KAWAZU_INFO_URL, { headers: { "User-Agent": USER_AGENT } }),
-      fetch(KAWAZU_LIST_URL, { headers: { "User-Agent": USER_AGENT } }),
+      safeFetch(KAWAZU_INFO_URL),
+      safeFetch(KAWAZU_LIST_URL),
     ]);
 
-    if (!infoRes.ok) throw new Error(`Kawazu info error: ${infoRes.status}`);
-    if (!listRes.ok) throw new Error(`Kawazu list error: ${listRes.status}`);
+    // safeFetch already throws on non-OK responses
 
     const info = (await infoRes.json())?.result_list;
     const list = await listRes.json();
@@ -547,9 +532,7 @@ export async function getKawazuForecast(): Promise<KawazuResult> {
     let forecastComment = "";
     if (info?.comment) {
       try {
-        const commentRes = await fetch(info.comment, {
-          headers: { "User-Agent": USER_AGENT },
-        });
+        const commentRes = await safeFetch(info.comment);
         if (commentRes.ok) {
           forecastComment = await commentRes.text();
         }

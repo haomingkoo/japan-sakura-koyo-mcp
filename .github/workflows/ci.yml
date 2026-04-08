@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run daily at 9 AM JST (midnight UTC) to detect upstream API breakage
+    - cron: "0 0 * * *"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run build
+
+  api-health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check n-kishou sakura API
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://other-api-prod.n-kishou.co.jp/get-sakura-hw")
+          echo "Sakura API: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Check n-kishou spots API
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://other-api-prod.n-kishou.co.jp/list-jr-points?type=sakura&filter_mode=forecast&area_mode=pref&area_code=13&sort_code=0")
+          echo "Spots API: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Check koyo forecast list
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://tennavi-data-prod.n-kishou.co.jp/koyo/koyo_jma_forecast_list.json")
+          echo "Koyo forecast: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Check Kawazu cherry data
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://tennavi-data-prod.n-kishou.co.jp/sakura/sakura_forecast_kawazu_list.json")
+          echo "Kawazu data: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Check weather API
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://weather.tsukumijima.net/api/forecast/city/130010")
+          echo "Weather API: $STATUS"
+          [ "$STATUS" = "200" ] || exit 1
+
+      - name: Verify sakura API response structure
+        run: |
+          curl -s "https://other-api-prod.n-kishou.co.jp/get-sakura-hw" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          regions = data['result_list']['region']
+          assert len(regions) > 0, 'No regions returned'
+          sample = regions[0]['sample'][0]
+          assert 'bloom' in sample, 'Missing bloom data'
+          assert 'full' in sample, 'Missing full bloom data'
+          print(f'OK: {len(regions)} regions, structure valid')
+          "

@@ -1,7 +1,6 @@
 import { cache, TTL } from "./cache.js";
 import { logger } from "./logger.js";
-
-const USER_AGENT = "japan-sakura-koyo-mcp/0.1.0";
+import { safeFetch } from "./fetch.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -106,9 +105,9 @@ export async function getKoyoForecast(): Promise<KoyoForecastResult> {
     logger.info("Fetching koyo forecast from n-kishou");
 
     const [topRes, updateRes, listRes] = await Promise.all([
-      fetch(KOYO_TOP_INFO, { headers: { "User-Agent": USER_AGENT } }),
-      fetch(KOYO_UPDATE_INFO, { headers: { "User-Agent": USER_AGENT } }),
-      fetch(KOYO_FORECAST_LIST, { headers: { "User-Agent": USER_AGENT } }),
+      safeFetch(KOYO_TOP_INFO),
+      safeFetch(KOYO_UPDATE_INFO),
+      safeFetch(KOYO_FORECAST_LIST),
     ]);
 
     if (!topRes.ok) throw new Error(`Koyo top info error: ${topRes.status}`);
@@ -123,7 +122,7 @@ export async function getKoyoForecast(): Promise<KoyoForecastResult> {
     let forecastComment = "";
     if (top?.comment) {
       try {
-        const commentRes = await fetch(top.comment, { headers: { "User-Agent": USER_AGENT } });
+        const commentRes = await safeFetch(top.comment);
         if (commentRes.ok) {
           const raw = await commentRes.text();
           forecastComment = raw.replace(/\[橙→\]/g, "").replace(/\[←\]/g, "").replace(/\[.*?→\]/g, "").trim();
@@ -176,7 +175,7 @@ export async function getKoyoSpots(prefCode: string): Promise<KoyoSpotResult> {
   return cache.getOrFetch(cacheKey, TTL.SPOTS, async () => {
     logger.info(`Fetching koyo spots for prefecture ${prefCode}`);
     const url = `${KOYO_SPOTS_API}?type=koyo&filter_mode=forecast&area_mode=pref&area_code=${prefCode}&sort_code=0`;
-    const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
+    const res = await safeFetch(url);
     if (!res.ok) throw new Error(`Koyo spots API error: ${res.status}`);
     const data = await res.json();
 

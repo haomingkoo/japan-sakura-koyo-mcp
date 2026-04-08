@@ -312,12 +312,60 @@ async function main() {
   }
 }
 
+// ─── HTTP rate limiter ───────────────────────────────────────────────────────
+
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 60; // 60 requests per minute per IP
+const MAX_SESSIONS = 1_000;
+const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+const ipRequestCounts = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = ipRequestCounts.get(ip);
+  if (!entry || now > entry.resetAt) {
+    ipRequestCounts.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+// Clean up stale rate limit entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of ipRequestCounts) {
+    if (now > entry.resetAt) ipRequestCounts.delete(ip);
+  }
+}, 5 * 60 * 1000).unref();
+
 async function startHttpServer() {
   const port = parseInt(process.env.PORT ?? "3000");
   const transports = new Map<string, StreamableHTTPServerTransport>();
+  const sessionLastActive = new Map<string, number>();
+
+  // Clean up idle sessions every 2 minutes
+  setInterval(() => {
+    const now = Date.now();
+    for (const [sid, lastActive] of sessionLastActive) {
+      if (now - lastActive > SESSION_IDLE_TIMEOUT_MS) {
+        const transport = transports.get(sid);
+        if (transport) transport.close();
+        transports.delete(sid);
+        sessionLastActive.delete(sid);
+        logger.info(`Cleaned up idle session ${sid.slice(0, 8)}...`);
+      }
+    }
+    if (transports.size > 0) {
+      logger.info(`Active sessions: ${transports.size}`);
+    }
+  }, 2 * 60 * 1000).unref();
 
   const httpServer = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://localhost:${port}`);
+    const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim()
+      ?? req.socket.remoteAddress ?? "unknown";
 
     // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -325,9 +373,21 @@ async function startHttpServer() {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id");
     if (req.method === "OPTIONS") { res.writeHead(204).end(); return; }
 
+    // Rate limit (except health check)
+    if (url.pathname !== "/health" && isRateLimited(clientIp)) {
+      res.writeHead(429, { "Content-Type": "application/json", "Retry-After": "60" });
+      res.end(JSON.stringify({ error: "Too many requests. Limit: 60/minute." }));
+      return;
+    }
+
     if (url.pathname === "/health") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "ok", server: "japan-sakura-koyo-mcp", version: "0.1.0" }));
+      res.end(JSON.stringify({
+        status: "ok",
+        server: "japan-sakura-koyo-mcp",
+        version: "0.1.0",
+        activeSessions: transports.size,
+      }));
       return;
     }
 
@@ -336,7 +396,15 @@ async function startHttpServer() {
 
       // Reuse existing session
       if (sessionId && transports.has(sessionId)) {
+        sessionLastActive.set(sessionId, Date.now());
         await transports.get(sessionId)!.handleRequest(req, res);
+        return;
+      }
+
+      // Reject new sessions if at capacity
+      if (transports.size >= MAX_SESSIONS) {
+        res.writeHead(503, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Server at capacity. Try again later." }));
         return;
       }
 
@@ -345,14 +413,20 @@ async function startHttpServer() {
         sessionIdGenerator: () => crypto.randomUUID(),
       });
       transport.onclose = () => {
-        if (transport.sessionId) transports.delete(transport.sessionId);
+        if (transport.sessionId) {
+          transports.delete(transport.sessionId);
+          sessionLastActive.delete(transport.sessionId);
+        }
       };
 
       const sessionServer = new McpServer({ name: "japan-sakura-koyo-mcp", version: "0.1.0" });
       registerAllTools(sessionServer);
       await sessionServer.connect(transport);
 
-      if (transport.sessionId) transports.set(transport.sessionId, transport);
+      if (transport.sessionId) {
+        transports.set(transport.sessionId, transport);
+        sessionLastActive.set(transport.sessionId, Date.now());
+      }
       await transport.handleRequest(req, res);
       return;
     }
@@ -361,11 +435,12 @@ async function startHttpServer() {
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(`<!DOCTYPE html><html><head><title>japan-sakura-koyo-mcp</title></head>
 <body style="font-family:system-ui;max-width:600px;margin:40px auto;padding:0 20px">
-<h1>🌸 japan-sakura-koyo-mcp</h1>
+<h1>japan-sakura-koyo-mcp</h1>
 <p>MCP server for Japanese cherry blossom &amp; autumn leaves forecasting.</p>
 <p><b>MCP endpoint:</b> <code>https://${req.headers.host}/mcp</code></p>
 <p><b>7 tools:</b> sakura forecast, 1,012 sakura spots, best dates, Kawazu cherry, koyo forecast, 687 koyo spots, weather</p>
 <p>Add to Claude/ChatGPT: use the MCP endpoint URL above.</p>
+<p><a href="https://github.com/haomingkoo/japan-sakura-koyo-mcp">GitHub</a> · <a href="https://www.npmjs.com/package/japan-sakura-koyo-mcp">npm</a></p>
 </body></html>`);
       return;
     }
@@ -376,6 +451,7 @@ async function startHttpServer() {
   httpServer.listen(port, () => {
     logger.info(`japan-sakura-koyo-mcp HTTP server on port ${port}`);
     logger.info(`MCP endpoint: http://localhost:${port}/mcp`);
+    logger.info(`Rate limit: ${RATE_LIMIT_MAX} req/min per IP, max ${MAX_SESSIONS} sessions`);
   });
 }
 

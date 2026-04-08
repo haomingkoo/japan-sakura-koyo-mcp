@@ -1,5 +1,6 @@
 import { cache, TTL } from "./cache.js";
 import { logger } from "./logger.js";
+import { safeFetch } from "./fetch.js";
 import { findAreaByName, findWeatherCityId, JMA_AREAS } from "./areas.js";
 
 export interface WeatherForecast {
@@ -37,7 +38,6 @@ export interface DayForecast {
   };
 }
 
-const USER_AGENT = "japan-sakura-koyo-mcp/0.1.0";
 
 /** Fetch weather forecast via the tsukumijima API (JMA data wrapper) */
 export async function getWeatherForecast(city: string): Promise<WeatherForecast> {
@@ -56,12 +56,7 @@ export async function getWeatherForecast(city: string): Promise<WeatherForecast>
     const url = `https://weather.tsukumijima.net/api/forecast/city/${cityId}`;
     logger.info(`Fetching weather for ${city} (${cityId})`);
 
-    const res = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT },
-    });
-    if (!res.ok) {
-      throw new Error(`Weather API error: ${res.status} ${res.statusText}`);
-    }
+    const res = await safeFetch(url);
     const data = await res.json();
 
     return {
@@ -112,12 +107,7 @@ export async function getJmaForecast(areaCode: string): Promise<any> {
     const url = `https://www.jma.go.jp/bosai/forecast/data/forecast/${areaCode}.json`;
     logger.info(`Fetching JMA forecast for area ${areaCode}`);
 
-    const res = await fetch(url, {
-      headers: { "User-Agent": USER_AGENT },
-    });
-    if (!res.ok) {
-      throw new Error(`JMA API error: ${res.status} ${res.statusText}`);
-    }
+    const res = await safeFetch(url);
     return res.json();
   });
 }
