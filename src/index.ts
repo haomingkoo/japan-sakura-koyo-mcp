@@ -469,26 +469,43 @@ async function startHttpServer() {
         return;
       }
 
-      // New session — create transport and connect a fresh server
+      // New connection without session ID.
+      // Read body to check if it's an initialize request or not.
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk as Buffer);
+      const bodyStr = Buffer.concat(chunks).toString();
+      let parsedBody: any;
+      try { parsedBody = JSON.parse(bodyStr); } catch { parsedBody = null; }
+
+      const isInit = parsedBody?.method === "initialize" ||
+        (Array.isArray(parsedBody) && parsedBody.some((m: any) => m.method === "initialize"));
+
+      // For non-init requests without session ID (e.g. Smithery probes),
+      // use a stateless transport so they don't need initialization.
       const transport = new StreamableHTTPServerTransport({
-        sessionIdGenerator: () => crypto.randomUUID(),
+        sessionIdGenerator: isInit ? () => crypto.randomUUID() : undefined,
       });
-      transport.onclose = () => {
-        if (transport.sessionId) {
-          transports.delete(transport.sessionId);
-          sessionLastActive.delete(transport.sessionId);
-        }
-      };
+
+      if (isInit) {
+        transport.onclose = () => {
+          if (transport.sessionId) {
+            transports.delete(transport.sessionId);
+            sessionLastActive.delete(transport.sessionId);
+          }
+        };
+      }
 
       const sessionServer = new McpServer({ name: "japan-sakura-koyo-mcp", version: "0.1.0" });
       registerAllTools(sessionServer);
       await sessionServer.connect(transport);
 
-      if (transport.sessionId) {
+      if (isInit && transport.sessionId) {
         transports.set(transport.sessionId, transport);
         sessionLastActive.set(transport.sessionId, Date.now());
       }
-      await transport.handleRequest(req, res);
+
+      // Pass the pre-parsed body so the transport doesn't try to re-read the stream
+      await transport.handleRequest(req, res, parsedBody);
       return;
     }
 
