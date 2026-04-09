@@ -143,8 +143,8 @@ FULL BLOOM RATE (progress toward mankai/満開)
 │  get-sakura-hw     → 48 city forecasts       │
 │  list-jr-points    → 1,012 sakura spots      │
 │  list-jr-points    → 687 koyo spots          │
-│  kawazu_info.json  → Kawazu cherry data       │
-│  koyo_*.json       → Autumn leaves forecasts  │
+│  kawazu_info.json  → Kawazu cherry data      │
+│  koyo_*.json       → Autumn leaves forecasts │
 └──────────────┬───────────────────────────────┘
                │ live API calls (cached 1-6 hours)
                │
