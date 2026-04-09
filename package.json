@@ -1,6 +1,6 @@
 {
   "name": "japan-sakura-koyo-mcp",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Cherry blossom & autumn leaves forecast for Japan — 1,700+ spots with real-time bloom data, weather, and trip planning. MCP server powered by Japan Meteorological Corporation data.",
   "type": "module",
   "main": "dist/index.js",
