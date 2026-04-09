@@ -131,6 +131,7 @@
     <h1>Japan Sakura & Koyo</h1>
     <div class="controls">
       <button class="mode-btn active" id="btn-sakura" onclick="setMode('sakura')">Cherry Blossom</button>
+      <button class="mode-btn" id="btn-trip" onclick="setMode('trip')">Plan My Trip</button>
       <button class="mode-btn koyo" id="btn-koyo" onclick="setMode('koyo')">Autumn Leaves</button>
       <span style="color:var(--gray-200)">|</span>
       <input type="date" class="date-input" id="date-start">
@@ -286,8 +287,10 @@ const CITY_COORDS = {
 function setMode(m) {
   mode = m;
   $('btn-sakura').classList.toggle('active', m === 'sakura');
+  $('btn-trip').classList.toggle('active', m === 'trip');
   $('btn-koyo').classList.toggle('active', m === 'koyo');
   if (m === 'sakura') loadSakura();
+  if (m === 'trip') loadTripPlanner();
   if (m === 'koyo') loadKoyo();
 }
 
@@ -370,7 +373,6 @@ async function loadPrefSpots(prefCode, prefName) {
 
       // Load weather for this city
       loadWeatherCard(jma.name);
-    }
     }
     for (const spot of data.spots) {
       html += `<div class="spot-item" onclick="flyToSpot(${spot.lat},${spot.lon},'${spot.name.replace(/'/g,"\\'")}',${spot.bloomRate},${spot.fullRate},'${spot.status.replace(/'/g,"\\'")}')">
@@ -523,6 +525,170 @@ function updateLegend(type) {
       <div class="legend-row"><div class="legend-dot" style="background:#ea580c"></div> Peak colors</div>
       <div class="legend-row"><div class="legend-dot" style="background:#fdba74"></div> Turning</div>
       <div class="legend-row"><div class="legend-dot" style="background:#e5e5e5"></div> Not yet / ended</div>`;
+  }
+}
+
+// ── Major tourist cities for trip planner ──
+const TOURIST_CITIES = {
+  "tokyo":[35.689,139.692],"osaka":[34.694,135.502],"kyoto":[35.012,135.768],
+  "hiroshima":[34.397,132.46],"nara":[34.685,135.833],"kobe":[34.691,135.183],
+  "yokohama":[35.448,139.642],"nagoya":[35.18,136.906],"sapporo":[43.062,141.354],
+  "fukuoka":[33.59,130.402],"kanazawa":[36.594,136.625],"hakone":[35.233,139.107],
+  "nikko":[36.75,139.597],"kamakura":[35.319,139.547],"takayama":[36.146,137.252],
+  "matsumoto":[36.238,137.972],"sendai":[38.268,140.872],"hakodate":[41.769,140.729],
+  "nagasaki":[32.745,129.873],"kumamoto":[32.803,130.707],"kagoshima":[31.596,130.557],
+  "okayama":[34.662,133.935],"miyajima":[34.296,132.319],"naoshima":[34.46,133.995],
+  "beppu":[33.28,131.491],"fuji":[35.361,138.727],"kawaguchiko":[35.514,138.752],
+  "shirakawago":[36.257,136.906],"izu":[34.772,138.946],"uji":[34.884,135.808],
+  "aomori":[40.824,140.74],"akita":[39.717,140.103],"morioka":[39.702,141.153],
+  "matsue":[35.472,133.051],"takamatsu":[34.34,134.043],"matsuyama":[33.842,132.766],
+  "okinawa":[26.334,127.8],"naha":[26.334,127.8],
+};
+
+function haversineKm(lat1,lon1,lat2,lon2) {
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ── Trip Planner ──
+function loadTripPlanner() {
+  $('sidebar-header').innerHTML = '<h2>Plan My Trip</h2><p>Enter the cities you\'re visiting</p>';
+  updateLegend('sakura');
+
+  $('sidebar-content').innerHTML = `
+    <div style="padding:16px">
+      <textarea id="trip-cities" rows="3" placeholder="Type cities, e.g.:\nTokyo, Kyoto, Osaka\nor: Hakone, Kamakura, Nikko"
+        style="width:100%;padding:10px;border:1px solid var(--gray-200);border-radius:8px;font-size:0.9rem;font-family:inherit;resize:vertical"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <label style="font-size:0.82rem;color:var(--gray-600)">Radius:</label>
+        <select id="trip-radius" style="padding:6px 10px;border:1px solid var(--gray-200);border-radius:6px;font-size:0.82rem">
+          <option value="15">15 km</option>
+          <option value="30" selected>30 km</option>
+          <option value="50">50 km</option>
+        </select>
+        <button onclick="searchTrip()" style="flex:1;padding:8px;background:var(--pink);color:white;border:none;border-radius:8px;cursor:pointer;font-weight:500">Find sakura spots</button>
+      </div>
+      <div style="margin-top:12px;font-size:0.78rem;color:var(--gray-400)">
+        Known cities: ${Object.keys(TOURIST_CITIES).map(c=>c.charAt(0).toUpperCase()+c.slice(1)).join(', ')}
+      </div>
+    </div>
+    <div id="trip-results"></div>`;
+}
+
+async function searchTrip() {
+  const input = $('trip-cities').value;
+  const radiusKm = parseInt($('trip-radius').value);
+  const cities = input.split(/[,\n]+/).map(c => c.trim().toLowerCase()).filter(Boolean);
+
+  if (!cities.length) { alert('Enter at least one city'); return; }
+
+  // Resolve city coordinates
+  const resolved = [];
+  const unknown = [];
+  for (const city of cities) {
+    const coords = TOURIST_CITIES[city];
+    if (coords) resolved.push({ name: city, lat: coords[0], lon: coords[1] });
+    else unknown.push(city);
+  }
+
+  if (resolved.length === 0) {
+    $('trip-results').innerHTML = `<div style="padding:16px;color:#dc2626">Could not find: ${unknown.join(', ')}. Try the city names listed above.</div>`;
+    return;
+  }
+
+  $('trip-results').innerHTML = '<div class="loading">Loading spots near your cities...</div>';
+
+  try {
+    if (!allSpotsData) allSpotsData = await api('/api/sakura/all-spots');
+
+    clearMarkers();
+    clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 35,
+      showCoverageOnHover: false,
+      iconCreateFunction: function(cluster) {
+        const n = cluster.getChildCount();
+        const size = Math.min(35 + n * 0.3, 55);
+        return L.divIcon({
+          html: `<div style="background:#ec4899;color:white;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2)">${n}</div>`,
+          className: '', iconSize: [size, size],
+        });
+      }
+    });
+
+    // Find spots near any of the resolved cities
+    const nearbySpots = [];
+    for (const spot of allSpotsData.spots) {
+      if (!spot.lat || !spot.lon) continue;
+      for (const city of resolved) {
+        const dist = haversineKm(city.lat, city.lon, spot.lat, spot.lon);
+        if (dist <= radiusKm) {
+          nearbySpots.push({ ...spot, nearCity: city.name, distance: Math.round(dist) });
+          break;
+        }
+      }
+    }
+
+    // Add city markers (blue)
+    const bounds = [];
+    for (const city of resolved) {
+      const m = L.marker([city.lat, city.lon], {
+        icon: L.divIcon({
+          html: `<div style="background:#3b82f6;color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)">📍</div>`,
+          className: '', iconSize: [28, 28], iconAnchor: [14, 14],
+        })
+      }).addTo(mapInstance);
+      m.bindPopup(`<b>${city.name.charAt(0).toUpperCase() + city.name.slice(1)}</b><br>Your destination`);
+      markers.push(m);
+      bounds.push([city.lat, city.lon]);
+    }
+
+    // Add spot markers
+    for (const spot of nearbySpots) {
+      const color = sakuraColor(spot.bloomRate, spot.fullRate);
+      const marker = L.circleMarker([spot.lat, spot.lon], {
+        radius: sakuraRadius(spot.bloomRate, spot.fullRate),
+        fillColor: color, color: 'white', weight: 1.5, fillOpacity: 0.9,
+      });
+      const displayName = spot.nameRomaji ? `${spot.name} <span style="color:#888">${spot.nameRomaji}</span>` : spot.name;
+      marker.bindPopup(`<b>${displayName}</b><br>${growthStage(spot.bloomRate)} ${spot.bloomRate}% &middot; ${floweringStage(spot.fullRate)} ${spot.fullRate}%<br>${spot.distance}km from ${spot.nearCity}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899">Google Maps &rarr;</a>`);
+      clusterGroup.addLayer(marker);
+      bounds.push([spot.lat, spot.lon]);
+    }
+
+    mapInstance.addLayer(clusterGroup);
+    if (bounds.length) mapInstance.fitBounds(bounds, { padding: [30, 30] });
+
+    // Sidebar results
+    let html = '';
+    if (unknown.length) {
+      html += `<div style="padding:8px 16px;background:#fef3c7;font-size:0.82rem">Unknown cities: ${unknown.join(', ')}</div>`;
+    }
+    html += `<div style="padding:12px 16px;background:var(--gray-50);font-weight:600;font-size:0.85rem;border-bottom:1px solid var(--gray-200)">${nearbySpots.length} spots within ${radiusKm}km of ${resolved.map(c=>c.name.charAt(0).toUpperCase()+c.name.slice(1)).join(', ')}</div>`;
+
+    // Sort by distance
+    nearbySpots.sort((a, b) => a.distance - b.distance);
+
+    for (const spot of nearbySpots) {
+      html += `<div class="spot-item" onclick="flyToSpot(${spot.lat},${spot.lon},'${spot.name.replace(/'/g,"\\'")}',${spot.bloomRate},${spot.fullRate},'${spot.status.replace(/'/g,"\\'")}')">
+        <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''}</h4>
+        <div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(spot.bloomRate,100)}%">${spot.bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(spot.bloomRate)}</span></div>
+        <div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(spot.fullRate,100)}%">${spot.fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(spot.fullRate)}</span></div>
+        <div class="sub" style="margin-top:4px">
+          ${spot.distance}km from ${spot.nearCity.charAt(0).toUpperCase()+spot.nearCity.slice(1)} &middot;
+          Bloom: ${fmtDate(spot.bloomForecast)} → Full: ${fmtDate(spot.fullBloomForecast)}
+          &middot; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Maps &rarr;</a>
+        </div>
+      </div>`;
+    }
+
+    if (nearbySpots.length === 0) {
+      html += '<div style="padding:20px;text-align:center;color:var(--gray-400)">No sakura spots found within the radius. Try increasing the distance.</div>';
+    }
+
+    $('trip-results').innerHTML = html;
+  } catch (e) {
+    $('trip-results').innerHTML = `<div style="padding:16px;color:#dc2626">${e.message}</div>`;
   }
 }
 
