@@ -816,7 +816,19 @@ function spotPopupHtml(spot) {
   const liveStatus = spotStatusWithDate(spot.bloomRate, spot.fullRate, spot.fullBloomForecast) || spot.status;
   const isEnded = liveStatus.includes('Ended') || liveStatus.includes('Falling') || liveStatus.includes('Past peak') || liveStatus.includes('green');
 
-  const barsHtml = isEnded ? '' : `<div style="margin:6px 0">${bloomBar(spot.bloomRate, spot.fullRate, spot.fullBloomForecast)}</div>`;
+  // Full-width bar for popup (not the sidebar CSS class which is too narrow)
+  let barsHtml = '';
+  if (!isEnded) {
+    const rate = spot.fullRate > 0 ? spot.fullRate : spot.bloomRate;
+    const label = spot.fullRate > 0 ? 'Flowering' : 'Growth';
+    const grad = spot.fullRate > 0 ? 'linear-gradient(90deg,#f9a8d4,#be185d)' : 'linear-gradient(90deg,#fdba74,#f97316)';
+    barsHtml = `<div style="margin:8px 0">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:3px"><span>${label}</span><span>${rate}%</span></div>
+      <div style="height:16px;background:#f0f0f0;border-radius:8px;overflow:hidden">
+        <div style="width:${Math.min(rate,100)}%;height:100%;background:${grad};border-radius:8px"></div>
+      </div>
+    </div>`;
+  }
 
   const statusColor = isEnded ? '#4ade80' : '#be185d';
   return `<div style="min-width:220px">
@@ -826,7 +838,7 @@ function spotPopupHtml(spot) {
     <span style="font-size:11px;color:#888">${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}</span><br>
     <div style="margin-top:4px">
       <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>
-      &middot; <a href="https://japantravel.navitime.com/en/area/jp/spot/${spot.lat},${spot.lon}/" target="_blank" style="color:#0369a1;font-size:12px">Route (Navitime)</a>
+      &middot; <a href="https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lon}" target="_blank" style="color:#0369a1;font-size:12px">Directions</a>
     </div>
   </div>`;
 }
@@ -838,7 +850,7 @@ function spotCardHtml(spot, extra) {
     <div class="sub" style="margin-top:4px">
       ${extra ? extra + ' &middot; ' : ''}${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}
       &middot; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Maps</a>
-      &middot; <a href="https://japantravel.navitime.com/en/area/jp/spot/${spot.lat},${spot.lon}/" target="_blank" onclick="event.stopPropagation()" style="color:#0369a1">Route</a>
+      &middot; <a href="https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#0369a1">Directions</a>
     </div>
   </div>`;
 }
@@ -958,7 +970,8 @@ async function loadAllSpotsOnMap() {
           `<em style="color:#db2777">Kawazu Cherry (河津桜)</em><br>` +
           `<b>${kStatus}</b><br>` +
           `<span style="font-size:11px;color:#888">${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}</span><br>` +
-          `<a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a></div>`
+          `<a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>` +
+          ` &middot; <a href="https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lon}" target="_blank" style="color:#0369a1;font-size:12px">Directions</a></div>`
         );
         markers.push(m);
       }
