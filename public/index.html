@@ -532,6 +532,17 @@ async function loadFruitPicking() {
   // Place markers for in-season farms that have coordinates
   let markersAdded = 0;
   if (farms.length) {
+    clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 50, spiderfyOnMaxZoom: true, showCoverageOnHover: false,
+      iconCreateFunction: function(cluster) {
+        const n = cluster.getChildCount();
+        const size = Math.min(36 + n * 0.5, 54);
+        return L.divIcon({
+          html: `<div style="background:#16a34a;color:white;width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2)">${n}</div>`,
+          className: '', iconSize: [size, size],
+        });
+      }
+    });
     for (const farm of farms) {
       if (!farm.lat || !farm.lon) continue;
       const farmInSeason = farm.fruits?.some(fr => FRUITS.find(f => f.name === fr && f.months.includes(m)));
@@ -559,6 +570,7 @@ async function loadFruitPicking() {
       markers.push(marker);
       markersAdded++;
     }
+    mapInstance.addLayer(clusterGroup);
   }
 
   $('sidebar-header').innerHTML = `<h2>Fruit Picking in Japan</h2><p>${markersAdded > 0 ? markersAdded + ' farms in season on map · ' : ''}${farms.length ? farms.length + ' total farms' : 'Season guide'}</p>`;
