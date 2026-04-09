@@ -368,8 +368,7 @@ async function loadPrefSpots(prefCode, prefName) {
         radius, fillColor: color, color: 'white', weight: 1.5,
         fillOpacity: 0.9,
       }).addTo(mapInstance);
-      const popupName = spot.nameRomaji ? `${spot.name} <span style="color:#888">${spot.nameRomaji}</span>` : spot.name;
-      marker.bindPopup(`<b>${popupName}</b><br>${growthStage(spot.bloomRate)} ${spot.bloomRate}% &middot; ${floweringStage(spot.fullRate)} ${spot.fullRate}%<br>${spot.status}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899">Open in Google Maps &rarr;</a>`);
+      marker.bindPopup(spotPopupHtml(spot));
       markers.push(marker);
       bounds.push([spot.lat, spot.lon]);
     }
@@ -934,8 +933,7 @@ async function loadAllSpotsOnMap() {
         radius, fillColor: color, color: 'white', weight: 1.5, fillOpacity: 0.9,
         bloomRate: spot.bloomRate, fullRate: spot.fullRate, fullBloomForecast: spot.fullBloomForecast,
       });
-      const displayName = spot.nameRomaji ? `${spot.name} <span style="color:#888">${spot.nameRomaji}</span>` : spot.name;
-      marker.bindPopup(`<b>${displayName}</b><br>${growthStage(spot.bloomRate)} ${spot.bloomRate}% &middot; ${floweringStage(spot.fullRate)} ${spot.fullRate}%<br>${spot.status}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899">Open in Google Maps &rarr;</a>`);
+      marker.bindPopup(spotPopupHtml(spot));
       clusterGroup.addLayer(marker);
     }
     mapInstance.addLayer(clusterGroup);
@@ -945,9 +943,11 @@ async function loadAllSpotsOnMap() {
       const kawazu = await api('/api/kawazu');
       for (const spot of kawazu.spots || []) {
         if (!spot.lat || !spot.lon) continue;
+        const kEnded = spotStatusWithDate(spot.bloomRate, spot.fullRate, spot.fullBloomForecast)?.includes('Ended');
+        const kawazuColor = kEnded ? '#4ade80' : '#db2777';
         const m = L.marker([spot.lat, spot.lon], {
           icon: L.divIcon({
-            html: `<div style="background:#db2777;color:white;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2)" title="Kawazu Cherry">★</div>`,
+            html: `<div style="background:${kawazuColor};color:white;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2)" title="Kawazu Cherry">★</div>`,
             className: '', iconSize: [22, 22], iconAnchor: [11, 11],
           })
         }).addTo(mapInstance);
