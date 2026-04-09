@@ -367,6 +367,10 @@ async function loadPrefSpots(prefCode, prefName) {
         <div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(jma.bloomRate,100)}%">${jma.bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(jma.bloomRate)}</span></div>
         <div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(jma.fullRate,100)}%">${jma.fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(jma.fullRate)}</span></div>
       </div>`;
+
+      // Load weather for this city
+      loadWeatherCard(jma.name);
+    }
     }
     for (const spot of data.spots) {
       html += `<div class="spot-item" onclick="flyToSpot(${spot.lat},${spot.lon},'${spot.name.replace(/'/g,"\\'")}',${spot.bloomRate},${spot.fullRate},'${spot.status.replace(/'/g,"\\'")}')">
@@ -520,6 +524,40 @@ function updateLegend(type) {
       <div class="legend-row"><div class="legend-dot" style="background:#fdba74"></div> Turning</div>
       <div class="legend-row"><div class="legend-dot" style="background:#e5e5e5"></div> Not yet / ended</div>`;
   }
+}
+
+// ── Weather card ──
+async function loadWeatherCard(cityName) {
+  try {
+    const data = await api(`/api/weather?city=${encodeURIComponent(cityName)}`);
+    const weatherDiv = document.createElement('div');
+    weatherDiv.className = 'spot-item';
+    weatherDiv.style.background = '#f0f9ff';
+    let whtml = '<h4 style="color:#0369a1">Weather Forecast</h4>';
+    for (const day of data.forecasts) {
+      const temp = day.temperature;
+      const maxC = temp?.max?.celsius;
+      const rain = day.chanceOfRain;
+      const rainHigh = Math.max(
+        parseInt(rain?.T06_12) || 0,
+        parseInt(rain?.T12_18) || 0,
+        parseInt(rain?.T18_24) || 0
+      );
+      const rainIcon = rainHigh >= 50 ? '🌧' : rainHigh >= 20 ? '🌦' : '☀️';
+      whtml += `<div style="display:flex;justify-content:space-between;padding:3px 0;font-size:0.82rem">
+        <span>${rainIcon} ${day.dateLabel} ${day.date?.slice(5)}</span>
+        <span>${day.telop} ${maxC ? maxC+'°C' : ''} ${rainHigh > 0 ? '<span style="color:#0369a1">'+rainHigh+'%</span>' : ''}</span>
+      </div>`;
+    }
+    weatherDiv.innerHTML = whtml;
+    // Insert after the JMA station card
+    const firstSpot = $('sidebar-content').querySelector('.spot-item:nth-child(2)');
+    if (firstSpot) {
+      $('sidebar-content').insertBefore(weatherDiv, firstSpot);
+    } else {
+      $('sidebar-content').appendChild(weatherDiv);
+    }
+  } catch {} // Weather is optional — don't break the page
 }
 
 // ── Load all 1,012 spots on map ──
