@@ -7,6 +7,9 @@
   <meta name="description" content="Real-time cherry blossom and autumn leaves forecast for Japan. 1,700+ spots with live bloom data on an interactive map.">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     :root {
@@ -170,8 +173,10 @@
 // ── State ──
 let mode = 'sakura';
 let sakuraData = null;
+let allSpotsData = null;
 let mapInstance = null;
 let markers = [];
+let clusterGroup = null;
 
 // ── Map setup ──
 function initMap() {
@@ -293,21 +298,8 @@ async function loadSakura() {
     if (!sakuraData) sakuraData = await api('/api/sakura/forecast');
     clearMarkers();
 
-    // Plot all 48 cities on map immediately
-    for (const region of sakuraData.regions) {
-      for (const city of region.cities) {
-        const coords = CITY_COORDS[city.cityName];
-        if (!coords) continue;
-        const color = statusToColor(city.status);
-        const radius = statusToRadius(city.status);
-        const marker = L.circleMarker(coords, {
-          radius, fillColor: color, color: 'white', weight: 2, fillOpacity: 0.9,
-        }).addTo(mapInstance);
-        marker.bindPopup(`<b>${city.cityName}</b> (${city.prefName})<br>${city.status}<br>Bloom: ${fmtDate(city.bloom.forecast)}${city.bloom.observation ? ' → '+fmtDate(city.bloom.observation) : ''}<br>Full bloom: ${fmtDate(city.fullBloom.forecast)}${city.fullBloom.observation ? ' → '+fmtDate(city.fullBloom.observation) : ''}`);
-        marker.on('click', () => loadPrefSpots(city.prefCode, city.prefName));
-        markers.push(marker);
-      }
-    }
+    // Load ALL 1,012 spots on map with clustering
+    loadAllSpotsOnMap();
 
     // Render sidebar with regions
     let html = '';
@@ -504,6 +496,7 @@ async function findBestDates() {
 function clearMarkers() {
   markers.forEach(m => mapInstance.removeLayer(m));
   markers = [];
+  if (clusterGroup) { mapInstance.removeLayer(clusterGroup); clusterGroup = null; }
 }
 
 function updateLegend(type) {
@@ -522,6 +515,71 @@ function updateLegend(type) {
       <div class="legend-row"><div class="legend-dot" style="background:#ea580c"></div> Peak colors</div>
       <div class="legend-row"><div class="legend-dot" style="background:#fdba74"></div> Turning</div>
       <div class="legend-row"><div class="legend-dot" style="background:#e5e5e5"></div> Not yet / ended</div>`;
+  }
+}
+
+// ── Load all 1,012 spots on map ──
+async function loadAllSpotsOnMap() {
+  try {
+    if (!allSpotsData) {
+      allSpotsData = await api('/api/sakura/all-spots');
+    }
+
+    clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 40,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      iconCreateFunction: function(cluster) {
+        const markers = cluster.getAllChildMarkers();
+        // Average bloom rate for cluster color
+        let totalBloom = 0, totalFull = 0;
+        markers.forEach(m => { totalBloom += m.options.bloomRate || 0; totalFull += m.options.fullRate || 0; });
+        const avgBloom = totalBloom / markers.length;
+        const avgFull = totalFull / markers.length;
+        let color = '#e5e5e5';
+        if (avgFull >= 90) color = '#be185d';
+        else if (avgFull >= 40) color = '#ec4899';
+        else if (avgFull > 0) color = '#f9a8d4';
+        else if (avgBloom >= 60) color = '#86efac';
+        else if (avgBloom > 0) color = '#bbf7d0';
+        const size = Math.min(40 + markers.length * 0.5, 60);
+        return L.divIcon({
+          html: `<div style="background:${color};color:${avgFull>40?'white':'#333'};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2)">${markers.length}</div>`,
+          className: '',
+          iconSize: [size, size],
+        });
+      }
+    });
+
+    for (const spot of allSpotsData.spots) {
+      if (!spot.lat || !spot.lon) continue;
+      const color = sakuraColor(spot.bloomRate, spot.fullRate);
+      const radius = sakuraRadius(spot.bloomRate, spot.fullRate);
+      const marker = L.circleMarker([spot.lat, spot.lon], {
+        radius, fillColor: color, color: 'white', weight: 1.5, fillOpacity: 0.9,
+        bloomRate: spot.bloomRate, fullRate: spot.fullRate,
+      });
+      const displayName = spot.nameRomaji ? `${spot.name} <span style="color:#888">${spot.nameRomaji}</span>` : spot.name;
+      marker.bindPopup(`<b>${displayName}</b><br>${growthStage(spot.bloomRate)} ${spot.bloomRate}% &middot; ${floweringStage(spot.fullRate)} ${spot.fullRate}%<br>${spot.status}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899">Open in Google Maps &rarr;</a>`);
+      clusterGroup.addLayer(marker);
+    }
+    mapInstance.addLayer(clusterGroup);
+  } catch (e) {
+    // Fallback to city markers if all-spots fails
+    for (const region of (sakuraData?.regions || [])) {
+      for (const city of region.cities) {
+        const coords = CITY_COORDS[city.cityName];
+        if (!coords) continue;
+        const color = statusToColor(city.status);
+        const radius = statusToRadius(city.status);
+        const marker = L.circleMarker(coords, {
+          radius, fillColor: color, color: 'white', weight: 2, fillOpacity: 0.9,
+        }).addTo(mapInstance);
+        marker.bindPopup(`<b>${city.cityName}</b> (${city.prefName})<br>${city.status}`);
+        marker.on('click', () => loadPrefSpots(city.prefCode, city.prefName));
+        markers.push(marker);
+      }
+    }
   }
 }
 

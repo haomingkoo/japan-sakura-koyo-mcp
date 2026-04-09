@@ -67,6 +67,22 @@ export async function handleApiRequest(
       return true;
     }
 
+    // GET /api/sakura/all-spots — load all 1,012 spots across Japan
+    if (pathname === "/api/sakura/all-spots") {
+      const allSpots: any[] = [];
+      const prefCodes = Array.from({ length: 46 }, (_, i) => String(i + 1).padStart(2, "0"));
+      const results = await Promise.allSettled(
+        prefCodes.map(code => getSakuraSpots(code))
+      );
+      for (const r of results) {
+        if (r.status === "fulfilled" && r.value.spots) {
+          allSpots.push(...r.value.spots);
+        }
+      }
+      json(res, { totalSpots: allSpots.length, spots: allSpots });
+      return true;
+    }
+
     // GET /api/kawazu
     if (pathname === "/api/kawazu") {
       const data = await getKawazuForecast();
