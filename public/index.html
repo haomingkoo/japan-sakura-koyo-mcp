@@ -210,10 +210,19 @@ function fmtForecast(iso, rate) {
   if (!iso) return '—';
   return (rate >= 100 ? '' : '~') + fmtDate(iso);
 }
+// Sanity-check sakura dates: bloom happens Jan–Jun or Oct–Dec at the latest (Hokkaido).
+// A date in Jul–Sep is always stale/bad API data.
+function sakuraDateOk(iso) {
+  if (!iso) return false;
+  const mo = new Date(iso).getMonth() + 1;
+  return mo < 7 || mo > 9; // Jun is ok (late Hokkaido), Jul–Sep are never sakura
+}
 // Full date line: confirmed = plain date, forecast = "(est.)" suffix
 function fmtDates(bloomForecast, bloomRate, fullBloomForecast, fullRate) {
-  const b = bloomRate >= 100 ? `Bloomed: ${fmtDate(bloomForecast)}` : `Bloom: ${fmtDate(bloomForecast)} (est.)`;
-  const f = fullRate >= 100 ? `Full bloom: ${fmtDate(fullBloomForecast)}` : `Full bloom: ${fmtDate(fullBloomForecast)} (est.)`;
+  const bDate = sakuraDateOk(bloomForecast) ? fmtDate(bloomForecast) : '—';
+  const fDate = sakuraDateOk(fullBloomForecast) ? fmtDate(fullBloomForecast) : '—';
+  const b = bloomRate >= 100 ? `Bloomed: ${bDate}` : `Bloom: ${bDate === '—' ? '—' : bDate + ' (est.)'}`;
+  const f = fullRate >= 100 ? `Full bloom: ${fDate}` : `Full bloom: ${fDate === '—' ? '—' : fDate + ' (est.)'}`;
   return `${b} · ${f}`;
 }
 
@@ -674,6 +683,7 @@ function updateLegend(type) {
       <div style="font-weight:600;margin-bottom:4px">Bloom Lifecycle</div>
       <div class="legend-row"><div class="legend-dot" style="background:#d4d4d4"></div> Dormant</div>
       <div class="legend-row"><div class="legend-dot" style="background:#fdba74"></div> Bud stage</div>
+      <div class="legend-row"><div class="legend-dot" style="background:#fb923c"></div> Buds swelling</div>
       <div class="legend-row"><div class="legend-dot" style="background:#f97316"></div> Buds opening</div>
       <div class="legend-row"><div class="legend-dot" style="background:#f9a8d4"></div> Starting to bloom</div>
       <div class="legend-row"><div class="legend-dot" style="background:#ec4899"></div> Blooming</div>
