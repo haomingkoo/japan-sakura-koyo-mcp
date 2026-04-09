@@ -48,6 +48,7 @@
     }
     .mode-btn.active { background: var(--pink); color: white; border-color: var(--pink); }
     .mode-btn.koyo.active { background: var(--orange); color: white; border-color: var(--orange); }
+    .mode-btn.fruit.active { background: #16a34a; color: white; border-color: #16a34a; }
     .mode-btn:hover:not(.active) { border-color: var(--gray-400); }
     .date-input {
       padding: 5px 10px; border: 1px solid var(--gray-200); border-radius: 8px;
@@ -133,6 +134,7 @@
     <div class="controls">
       <button class="mode-btn active" id="btn-sakura" onclick="setMode('sakura')">Cherry Blossom</button>
       <button class="mode-btn koyo" id="btn-koyo" onclick="setMode('koyo')">Autumn Leaves</button>
+      <button class="mode-btn fruit" id="btn-fruit" onclick="setMode('fruit')">Fruit Picking</button>
       <button class="mode-btn" id="btn-trip" onclick="setMode('trip')">Plan My Trip</button>
       <button class="mode-btn" onclick="findNearMe()" id="btn-nearme" title="Find sakura spots near your current location">Near Me</button>
       <span style="color:var(--gray-200)">|</span>
@@ -336,9 +338,112 @@ function setMode(m) {
   $('btn-sakura').classList.toggle('active', m === 'sakura');
   $('btn-trip').classList.toggle('active', m === 'trip');
   $('btn-koyo').classList.toggle('active', m === 'koyo');
+  $('btn-fruit').classList.toggle('active', m === 'fruit');
   if (m === 'sakura') loadSakura();
   if (m === 'trip') loadTripPlanner();
   if (m === 'koyo') loadKoyo();
+  if (m === 'fruit') loadFruitPicking();
+}
+
+// ── FRUIT PICKING ──
+const FRUITS = [
+  { name:'Strawberry', ja:'いちご', emoji:'🍓', months:[12,1,2,3,4,5], peak:[2,3,4], color:'#ef4444',
+    regions:['Tochigi','Fukuoka','Nagano','Chiba','Ibaraki'], note:'Indoor farms enable a long Dec–May season' },
+  { name:'Melon', ja:'メロン', emoji:'🍈', months:[5,6,7,8], peak:[6,7], color:'#16a34a',
+    regions:['Hokkaido (Yubari)','Ibaraki','Kumamoto'], note:'Yubari King is Japan\'s most prized melon' },
+  { name:'Cherry', ja:'さくらんぼ', emoji:'🍒', months:[6,7], peak:[6,7], color:'#dc2626',
+    regions:['Yamagata','Hokkaido','Nagano','Aomori'], note:'Very short season — book farms early' },
+  { name:'Watermelon', ja:'すいか', emoji:'🍉', months:[6,7,8], peak:[7], color:'#16a34a',
+    regions:['Kumamoto','Yamagata','Chiba'] },
+  { name:'Peach', ja:'もも', emoji:'🍑', months:[7,8,9], peak:[7,8], color:'#f97316',
+    regions:['Yamanashi','Fukushima','Nagano','Okayama'] },
+  { name:'Blueberry', ja:'ブルーベリー', emoji:'🫐', months:[7,8,9], peak:[7,8], color:'#6d28d9',
+    regions:['Nagano','Chiba','Tokyo (suburbs)','Hokkaido'] },
+  { name:'Grape', ja:'ぶどう', emoji:'🍇', months:[8,9,10,11], peak:[9,10], color:'#7c3aed',
+    regions:['Yamanashi','Nagano','Yamagata','Okayama'], note:'50+ varieties; shine muscat is very popular' },
+  { name:'Pear', ja:'なし', emoji:'🍐', months:[8,9,10], peak:[8,9], color:'#65a30d',
+    regions:['Tottori','Chiba','Ibaraki','Nagano'], note:'Japanese pears are round and crisp' },
+  { name:'Fig', ja:'いちじく', emoji:'🍈', months:[8,9,10], peak:[9], color:'#a855f7',
+    regions:['Aichi','Osaka','Hyogo'] },
+  { name:'Apple', ja:'りんご', emoji:'🍎', months:[9,10,11], peak:[10,11], color:'#dc2626',
+    regions:['Aomori','Nagano','Iwate','Yamagata'], note:'Aomori produces ~60% of Japan\'s apples' },
+  { name:'Persimmon', ja:'柿', emoji:'🟠', months:[10,11,12], peak:[10,11], color:'#ea580c',
+    regions:['Nara','Wakayama','Gifu','Fukuoka'] },
+  { name:'Kiwi', ja:'キウイ', emoji:'🥝', months:[10,11,12], peak:[11], color:'#65a30d',
+    regions:['Ehime','Kanagawa','Fukuoka'] },
+  { name:'Mikan', ja:'みかん', emoji:'🍊', months:[11,12,1], peak:[11,12], color:'#f97316',
+    regions:['Wakayama','Ehime','Shizuoka','Nagasaki'], note:'Japan\'s most popular winter citrus' },
+];
+
+const MO = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function fruitSeasonLabel(months, peak) {
+  // Find start/end handling wrap-around (e.g. [12,1,2])
+  const sorted = [...months].sort((a,b) => a-b);
+  const hasWrap = sorted[sorted.length-1] - sorted[0] > 6;
+  let start, end;
+  if (hasWrap) {
+    // wrap-around: find the gap and read the other way
+    const wrapStart = sorted.find((m,i) => i>0 && m - sorted[i-1] > 1) ?? sorted[0];
+    start = wrapStart; end = sorted[sorted.length-1];
+    // e.g. [1,2,3,12] → Dec–Mar
+    const before = sorted.filter(m => m >= wrapStart);
+    const after = sorted.filter(m => m < wrapStart);
+    start = before[0]; end = after[after.length-1];
+  } else {
+    start = sorted[0]; end = sorted[sorted.length-1];
+  }
+  const peakLabels = peak.map(m => MO[m-1]).join('–');
+  return { season: `${MO[start-1]}–${MO[end-1]}`, peak: peakLabels };
+}
+
+function loadFruitPicking() {
+  $('sidebar-header').innerHTML = '<h2>Fruit Picking in Japan</h2><p>Typical season windows · actual farm dates vary</p>';
+  clearMarkers();
+  updateLegend('fruit');
+
+  const now = new Date();
+  const m = now.getMonth() + 1;
+  const nextM = m === 12 ? 1 : m + 1;
+  const nextM2 = nextM === 12 ? 1 : nextM + 1;
+
+  const inSeason = FRUITS.filter(f => f.months.includes(m));
+  const comingSoon = FRUITS.filter(f => !f.months.includes(m) && (f.months.includes(nextM) || f.months.includes(nextM2)));
+  const other = FRUITS.filter(f => !f.months.includes(m) && !f.months.includes(nextM) && !f.months.includes(nextM2));
+
+  function fruitCard(f) {
+    const { season, peak } = fruitSeasonLabel(f.months, f.peak);
+    const isPeak = f.peak.includes(m);
+    return `<div class="spot-item">
+      <h4>${f.emoji} ${f.name} <span style="font-weight:400;color:var(--gray-400)">${f.ja}</span>
+        ${isPeak ? '<span class="badge peak" style="background:#dcfce7;color:#16a34a;margin-left:6px">Peak now</span>' : ''}
+      </h4>
+      <div class="sub">Season: ${season} · Peak: ${peak}</div>
+      <div class="sub" style="margin-top:2px">Best regions: ${f.regions.join(', ')}</div>
+      ${f.note ? `<div class="sub" style="margin-top:2px;color:var(--gray-400);font-style:italic">${f.note}</div>` : ''}
+    </div>`;
+  }
+
+  let html = `<div style="margin:10px 16px;padding:10px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:0.8rem;color:#166534">
+    🌱 Dates are typical windows based on regional averages. Always confirm with individual farms before visiting.
+  </div>`;
+
+  if (inSeason.length) {
+    html += `<div style="padding:10px 16px;background:#dcfce7;font-weight:600;font-size:0.85rem;color:#15803d;border-bottom:1px solid #bbf7d0">In Season Now — ${MO[m-1]}</div>`;
+    inSeason.forEach(f => html += fruitCard(f));
+  }
+
+  if (comingSoon.length) {
+    html += `<div style="padding:10px 16px;background:#f0fdf4;font-weight:600;font-size:0.85rem;color:#166534;border-bottom:1px solid var(--gray-200)">Coming Up — ${MO[nextM-1]}/${MO[nextM2-1]}</div>`;
+    comingSoon.forEach(f => html += fruitCard(f));
+  }
+
+  if (other.length) {
+    html += `<div style="padding:10px 16px;background:var(--gray-50);font-weight:600;font-size:0.85rem;color:var(--gray-400);border-bottom:1px solid var(--gray-200)">Other Seasons</div>`;
+    other.forEach(f => html += fruitCard(f));
+  }
+
+  $('sidebar-content').innerHTML = html;
 }
 
 // ── SAKURA ──
