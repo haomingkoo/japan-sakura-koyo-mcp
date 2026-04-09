@@ -208,6 +208,12 @@ function fmtForecast(iso, rate) {
   if (!iso) return '—';
   return (rate >= 100 ? '' : '~') + fmtDate(iso);
 }
+// Full date line: labels change to "Bloomed"/"Peaked" once confirmed
+function fmtDates(bloomForecast, bloomRate, fullBloomForecast, fullRate) {
+  const b = bloomRate >= 100 ? `Bloomed: ${fmtDate(bloomForecast)}` : `Bloom: ~${fmtDate(bloomForecast)}`;
+  const f = fullRate >= 100 ? `Peaked: ${fmtDate(fullBloomForecast)}` : `Full bloom: ~${fmtDate(fullBloomForecast)}`;
+  return `${b} · ${f}`;
+}
 
 // ── Color by bloom rate + date ──
 // Lifecycle: orange (bud/growth) → pink (flowering) → green (ended/leaves)
@@ -414,7 +420,7 @@ async function loadPrefSpots(prefCode, prefName) {
         <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''}</h4>
         ${bloomBar(spot.bloomRate, spot.fullRate)}
         <div class="sub" style="margin-top:4px">
-          Bloom: ${fmtForecast(spot.bloomForecast, spot.bloomRate)} · Full bloom: ${fmtForecast(spot.fullBloomForecast, spot.fullRate)}
+          ${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}
           &nbsp;&middot;&nbsp; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Google Maps &rarr;</a>
         </div>
       </div>`;
@@ -709,7 +715,7 @@ async function searchTrip() {
         ${bloomBar(spot.bloomRate, spot.fullRate)}
         <div class="sub" style="margin-top:4px">
           ${spot.distance}km from ${spot.nearCity.charAt(0).toUpperCase()+spot.nearCity.slice(1)} &middot;
-          Bloom: ${fmtForecast(spot.bloomForecast, spot.bloomRate)} · Full: ${fmtForecast(spot.fullBloomForecast, spot.fullRate)}
+          ${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}
           &middot; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Maps &rarr;</a>
         </div>
       </div>`;
@@ -833,7 +839,7 @@ function spotPopupHtml(spot) {
     <b>${displayName}</b>
     ${barsHtml}
     <div style="margin:4px 0"><b style="color:${statusColor}">${liveStatus}</b></div>
-    <span style="font-size:11px;color:#888">Bloom: ${fmtForecast(spot.bloomForecast, spot.bloomRate)} &middot; Full bloom: ${fmtForecast(spot.fullBloomForecast, spot.fullRate)}</span><br>
+    <span style="font-size:11px;color:#888">${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}</span><br>
     <div style="margin-top:4px">
       <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>
       &middot; <a href="https://japantravel.navitime.com/en/area/jp/spot/${spot.lat},${spot.lon}/" target="_blank" style="color:#0369a1;font-size:12px">Route (Navitime)</a>
@@ -846,7 +852,7 @@ function spotCardHtml(spot, extra) {
     <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''}</h4>
     ${bloomBar(spot.bloomRate, spot.fullRate)}
     <div class="sub" style="margin-top:4px">
-      ${extra ? extra + ' &middot; ' : ''}Bloom: ${fmtForecast(spot.bloomForecast, spot.bloomRate)} · Full: ${fmtForecast(spot.fullBloomForecast, spot.fullRate)}
+      ${extra ? extra + ' &middot; ' : ''}${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}
       &middot; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Maps</a>
       &middot; <a href="https://japantravel.navitime.com/en/area/jp/spot/${spot.lat},${spot.lon}/" target="_blank" onclick="event.stopPropagation()" style="color:#0369a1">Route</a>
     </div>
@@ -967,7 +973,7 @@ async function loadAllSpotsOnMap() {
           `<div style="min-width:200px"><b>${spot.name}</b> ${spot.nameRomaji || ''}<br>` +
           `<em style="color:#db2777">Kawazu Cherry (河津桜)</em><br>` +
           `<b>${kStatus}</b><br>` +
-          `<span style="font-size:11px;color:#888">Bloom: ${fmtForecast(spot.bloomForecast, spot.bloomRate)} · Full bloom: ${fmtForecast(spot.fullBloomForecast, spot.fullRate)}</span><br>` +
+          `<span style="font-size:11px;color:#888">${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}</span><br>` +
           `<a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a></div>`
         );
         markers.push(m);
