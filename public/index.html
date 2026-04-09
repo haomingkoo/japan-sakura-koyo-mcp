@@ -263,6 +263,13 @@ function floweringStage(fullRate) {
   if (fullRate > 0) return 'Starting';
   return 'Not yet';
 }
+// Show only the most relevant bar: Flowering if any flowers, else Growth
+function bloomBar(bloomRate, fullRate) {
+  if (fullRate > 0) {
+    return `<div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(fullRate,100)}%">${fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(fullRate)}</span></div>`;
+  }
+  return `<div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(bloomRate,100)}%">${bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(bloomRate)}</span></div>`;
+}
 
 // Map city status text to dot color/size for the overview map
 function statusToColor(status) {
@@ -391,8 +398,7 @@ async function loadPrefSpots(prefCode, prefName) {
       const jma = data.jmaStation;
       html += `<div class="spot-item" style="background:var(--pink-light)">
         <h4>JMA Station: ${jma.name}</h4>
-        <div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(jma.bloomRate,100)}%">${jma.bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(jma.bloomRate)}</span></div>
-        <div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(jma.fullRate,100)}%">${jma.fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(jma.fullRate)}</span></div>
+        ${bloomBar(jma.bloomRate, jma.fullRate)}
       </div>`;
 
       // Load weather for this city
@@ -401,8 +407,7 @@ async function loadPrefSpots(prefCode, prefName) {
     for (const spot of data.spots) {
       html += `<div class="spot-item" onclick="flyToSpot(${spot.lat},${spot.lon},'${spot.name.replace(/'/g,"\\'")}',${spot.bloomRate},${spot.fullRate},'${spot.status.replace(/'/g,"\\'")}')">
         <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''}</h4>
-        <div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(spot.bloomRate,100)}%">${spot.bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(spot.bloomRate)}</span></div>
-        <div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(spot.fullRate,100)}%">${spot.fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(spot.fullRate)}</span></div>
+        ${bloomBar(spot.bloomRate, spot.fullRate)}
         <div class="sub" style="margin-top:4px">
           Forecast bloom: ${fmtDate(spot.bloomForecast)} → Full bloom: ${fmtDate(spot.fullBloomForecast)}
           &nbsp;&middot;&nbsp; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Google Maps &rarr;</a>
@@ -696,8 +701,7 @@ async function searchTrip() {
     for (const spot of nearbySpots) {
       html += `<div class="spot-item" onclick="flyToSpot(${spot.lat},${spot.lon},'${spot.name.replace(/'/g,"\\'")}',${spot.bloomRate},${spot.fullRate},'${spot.status.replace(/'/g,"\\'")}')">
         <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''}</h4>
-        <div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(spot.bloomRate,100)}%">${spot.bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(spot.bloomRate)}</span></div>
-        <div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(spot.fullRate,100)}%">${spot.fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(spot.fullRate)}</span></div>
+        ${bloomBar(spot.bloomRate, spot.fullRate)}
         <div class="sub" style="margin-top:4px">
           ${spot.distance}km from ${spot.nearCity.charAt(0).toUpperCase()+spot.nearCity.slice(1)} &middot;
           Bloom: ${fmtDate(spot.bloomForecast)} → Full: ${fmtDate(spot.fullBloomForecast)}
@@ -835,8 +839,7 @@ function spotPopupHtml(spot) {
 function spotCardHtml(spot, extra) {
   return `<div class="spot-item" onclick="flyToSpot(${spot.lat},${spot.lon},'${spot.name.replace(/'/g,"\\'")}',${spot.bloomRate},${spot.fullRate},'${spot.status.replace(/'/g,"\\'")}')">
     <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''}</h4>
-    <div class="bloom-row"><span class="bloom-label">Growth</span><div class="bloom-track"><div class="bloom-fill b" style="width:${Math.min(spot.bloomRate,100)}%">${spot.bloomRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${growthStage(spot.bloomRate)}</span></div>
-    <div class="bloom-row"><span class="bloom-label">Flowering</span><div class="bloom-track"><div class="bloom-fill f" style="width:${Math.min(spot.fullRate,100)}%">${spot.fullRate}%</div></div><span style="font-size:0.72rem;color:var(--gray-600);width:80px;text-align:right">${floweringStage(spot.fullRate)}</span></div>
+    ${bloomBar(spot.bloomRate, spot.fullRate)}
     <div class="sub" style="margin-top:4px">
       ${extra ? extra + ' &middot; ' : ''}Bloom: ${fmtDate(spot.bloomForecast)} → Full: ${fmtDate(spot.fullBloomForecast)}
       &middot; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Maps</a>
