@@ -11,6 +11,7 @@
 [![license](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 [![MCP](https://img.shields.io/badge/MCP-compatible-7c3aed)](https://modelcontextprotocol.io)
 [![Live demo](https://img.shields.io/badge/live_demo-seasons.kooexperience.com-0ea5e9)](https://seasons.kooexperience.com)
+[![smithery badge](https://smithery.ai/badge/haomingkoo/japan-seasons-mcp)](https://smithery.ai/servers/haomingkoo/japan-seasons-mcp)
 
 [**Live map**](https://seasons.kooexperience.com) · [**Hosted MCP endpoint**](https://seasons.kooexperience.com/mcp) · [**npm**](https://www.npmjs.com/package/japan-seasons-mcp)
 
