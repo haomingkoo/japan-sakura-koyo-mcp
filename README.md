@@ -1,46 +1,75 @@
-<p align="center">
-  <h1 align="center">japan-seasons-mcp</h1>
-  <p align="center">
-    Year-round seasonal activities in Japan — cherry blossom, autumn leaves, fruit picking, flowers, festivals & more.<br>
-    1,700+ spots. Live data. Built for AI assistants.
-  </p>
-</p>
+<div align="center">
 
-<p align="center">
-  <a href="https://www.npmjs.com/package/japan-seasons-mcp"><img src="https://img.shields.io/npm/v/japan-seasons-mcp" alt="npm"></a>
-  <a href="https://github.com/haomingkoo/japan-seasons-mcp/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="license"></a>
-  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-compatible-brightgreen" alt="MCP"></a>
-</p>
+# 🌸 japan-seasons-mcp
+
+**Give your AI assistant live Japan travel data — cherry blossom forecasts, autumn leaves, fruit picking, flowers, festivals & more.**
+
+*1,700+ spots. 12 tools. Live data from Japan Meteorological Corporation.*
+
+[![npm version](https://img.shields.io/npm/v/japan-seasons-mcp?color=ec4899&label=npm)](https://www.npmjs.com/package/japan-seasons-mcp)
+[![npm downloads](https://img.shields.io/npm/dm/japan-seasons-mcp?color=f97316&label=downloads)](https://www.npmjs.com/package/japan-seasons-mcp)
+[![license](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
+[![MCP](https://img.shields.io/badge/MCP-compatible-7c3aed)](https://modelcontextprotocol.io)
+[![Live demo](https://img.shields.io/badge/live_demo-seasons.kooexperience.com-0ea5e9)](https://seasons.kooexperience.com)
+
+[**Live map**](https://seasons.kooexperience.com) · [**Hosted MCP endpoint**](https://seasons.kooexperience.com/mcp) · [**npm**](https://www.npmjs.com/package/japan-seasons-mcp)
+
+</div>
 
 ---
 
-**Try it live:** [seasons.kooexperience.com](https://seasons.kooexperience.com) — interactive map with 1,700+ spots
+## Screenshots
 
-**The problem:** You ask ChatGPT, Gemini, or Claude *"When should I visit Kyoto for cherry blossoms?"* and get a generic answer based on training data. The actual bloom date shifts by weeks every year depending on temperature.
+| Cherry blossom forecast | Spot detail & weather |
+|---|---|
+| ![Sakura map](screenshots/01-sakura-map.png) | ![Sakura popup](screenshots/02-sakura-popup.png) |
 
-**The fix:** This MCP server gives AI assistants access to **live forecast data** from the Japan Meteorological Corporation — the same source behind Japan's #1 cherry blossom app (SAKURA NAVI). Real dates. Real bloom percentages. Updated daily.
+| Fruit picking | What's On in Japan |
+|---|---|
+| ![Fruit picking](screenshots/03-fruit-picking.png) | ![What's On](screenshots/05-whatson.png) |
 
-## What You Get
+| Autumn leaves |
+|---|
+| ![Koyo map](screenshots/06-koyo-map.png) |
 
-| Data | Coverage | Updated |
-|------|----------|---------|
-| **Sakura forecast** | 48 JMA observation cities — forecast vs actual bloom dates, historical averages | Daily |
-| **Sakura spots** | **1,012** parks, temples, gardens — bloom %, full bloom %, GPS coordinates | Daily 9AM JST |
-| **Kawazu cherry** | 9 early-bloom spots in Izu Peninsula (Jan-Feb, deep pink variety) | Seasonal |
-| **Koyo forecast** | 50+ cities — maple & ginkgo color change dates vs historical normal | Seasonal |
-| **Koyo spots** | **687** autumn viewing spots — peak window (start/peak/end), popularity rating, GPS | Seasonal |
-| **Flowers** | **80** curated spots — 8 types Jan–Oct: plum, rapeseed, wisteria, iris, hydrangea, lavender, sunflower, cosmos | Curated |
-| **Festivals** | **52** events — fireworks (Jul-Aug), matsuri, winter events with official URLs and attendance | Curated |
-| **Fruit picking** | **350+** farms — Jalan + Navitime data, GPS coordinates, season calendar for 14 fruits | Weekly |
-| **Weather** | 51 cities — 3-day forecast, temperature, rain probability | Hourly |
+---
 
-Every data point comes from a live API call or curated dataset. Nothing is hallucinated.
+## The problem
 
-## Quick Start
+You ask Claude, ChatGPT, or Gemini: *"When should I visit Kyoto for cherry blossoms?"*
 
-### Use with Claude Desktop / Claude Code
+You get "late March to early April" — the same answer every year, based on training data that has no idea what this winter was like.
 
-Add to your MCP config:
+The actual bloom date shifts by 2–3 weeks depending on temperatures. Tokyo peaked March 29 in 2024, March 22 in 2023, March 28 in 2022. Your AI is guessing. This MCP server stops the guessing.
+
+## The fix
+
+It connects Claude (or any MCP client) to live forecast data from the Japan Meteorological Corporation, the same source behind SAKURA NAVI, Japan's most-used cherry blossom app. Data updates daily at 9AM JST.
+
+```
+You:    "I'm in Japan April 8–14. Where should I see cherry blossoms?"
+
+Claude: Based on today's JMC forecast data:
+
+        Cities in full bloom during your visit:
+        • Sendai (Miyagi) — full bloom forecast Apr 10 (avg Apr 12)
+        • Morioka (Iwate) — full bloom forecast Apr 13 (avg Apr 16, running early)
+        • Akita — full bloom forecast Apr 14
+
+        For Sendai, top spots include Tsutsujigaoka Park (92% full bloom today)
+        and Nishi Park. Morioka Castle ruins are a classic.
+
+        One thing to watch: 40% rain chance Apr 10 in Sendai. Rain speeds up
+        petal fall, so Apr 11–12 is probably the safer window.
+```
+
+Real bloom percentages. Real park names. Real weather.
+
+---
+
+## Install
+
+**Claude Desktop / Claude Code / any stdio MCP client**
 
 ```json
 {
@@ -53,182 +82,250 @@ Add to your MCP config:
 }
 ```
 
-Then ask Claude: *"I'm going to Japan April 10-15. Where should I see cherry blossoms?"*
+**HTTP endpoint — no install required**
 
-### Use with any MCP client (hosted)
+Any MCP client that supports HTTP transport can point directly at the hosted instance:
+
+```
+https://seasons.kooexperience.com/mcp
+```
+
+**Self-host**
 
 ```bash
 PORT=3000 npx japan-seasons-mcp --http
 # MCP endpoint: http://localhost:3000/mcp
 ```
 
-Or use the hosted instance directly: `https://seasons.kooexperience.com/mcp`
+---
 
-## Tools (12 total)
+## What's covered
 
-### Cherry Blossom (Sakura)
+| Season | Data | Spots | Source |
+|--------|------|-------|--------|
+| Jan–Feb | Kawazu cherry (early deep-pink variety, Izu Peninsula) | 9 spots | JMC live |
+| Jan–Mar | Plum blossoms | 8 spots | curated |
+| Mar–May | Cherry blossom (sakura) | **1,012 parks & temples** | JMC live, daily |
+| Apr–May | Wisteria | 13 spots | curated |
+| May–Jun | Iris gardens | 9 spots | curated |
+| Jun–Jul | Hydrangea | 15 spots | curated |
+| Jun–Jul | Lavender fields | 6 spots | curated |
+| Jul–Aug | Fireworks festivals & summer matsuri | 52 events | curated |
+| Jul–Aug | Sunflower fields | 7 spots | curated |
+| May–Nov | Fruit picking | **350+ farms**, 14 fruits | Jalan + Navitime |
+| Sep–Oct | Cosmos fields | 8 spots | curated |
+| Oct–Dec | Autumn leaves (koyo) | **687 viewing spots** | JMC live |
+| Jan–Feb | Winter events (Sapporo Snow Festival, etc.) | 8 events | curated |
 
-**`get_sakura_forecast`** — Big picture across all of Japan
-```
-"I want to see cherry blossoms in Japan"
-→ Returns 48 cities with bloom status, forecast dates, actual observation dates, historical averages
-```
+1,700+ GPS-tagged spots across 12 seasonal categories.
 
-**`get_sakura_spots`** — Drill into specific viewing spots
-```
-"Show me cherry blossom spots in Kyoto"
-→ Returns 51 spots: Kiyomizu-dera, Arashiyama, Philosopher's Path... with bloom %, GPS
-```
+---
 
-**`get_sakura_best_dates`** — Match your travel dates to bloom cities
-```
-"I'm traveling April 10-15"
-→ Returns cities where full bloom overlaps your dates
-```
+## 12 tools
 
-**`get_kawazu_cherry`** — Early-season deep pink variety
-```
-"I want to see cherry blossoms in February"
-→ 9 Kawazu cherry spots in Izu Peninsula (blooms Jan-Feb, months before standard sakura)
-```
+### Cherry blossom
 
-### Autumn Leaves (Koyo)
+**`get_sakura_forecast`** — the big picture
 
-**`get_koyo_forecast`** — Maple & ginkgo timing by city
-```
-"When do autumn leaves peak in Japan?"
-→ 50+ cities with maple/ginkgo dates and comparison to historical normal
-```
+All 48 JMA observation cities in one call: this year's forecast, actual dates when observed, and how each city compares to the historical average. Good starting point before you drill into specific spots.
 
-**`get_koyo_best_dates`** — Match your travel dates to colour cities
 ```
-"I'm going to Japan in late October"
-→ Returns cities where maple/ginkgo peak overlaps your dates
+"What's the cherry blossom situation in Japan right now?"
+→ 48 cities by region, bloom status, forecast dates, days vs average
 ```
 
-**`get_koyo_spots`** — Famous viewing spots by prefecture
+**`get_sakura_spots`** — specific parks and temples
+
+1,012 spots across Japan with bloom percentage, full-bloom percentage, and GPS coordinates, updated daily.
+
 ```
-"Best autumn leaves spots in Kyoto"
-→ 52 spots: Arashiyama, Eikando, Tofukuji... with peak dates, popularity rating, GPS
+"Cherry blossom spots in Kyoto"
+→ 51 spots: Kiyomizu-dera (87%), Maruyama Park (91%), Philosopher's Path (76%)...
 ```
+
+**`get_sakura_best_dates`** — match travel dates to bloom
+
+Give it your start and end dates, get back the cities where full bloom overlaps your window.
+
+```
+"I'm in Japan April 8–14, where should I go?"
+→ Cities with bloom in that window, ranked by timing, avg comparison
+```
+
+**`get_kawazu_cherry`** — early-season deep-pink variety
+
+Kawazu cherry blooms January–February in Izu Peninsula, months before standard sakura opens anywhere.
+
+```
+"Can I see cherry blossoms in February?"
+→ 9 Kawazu spots with bloom %, GPS, forecast dates
+```
+
+---
+
+### Autumn leaves
+
+**`get_koyo_forecast`** — maple and ginkgo timing by city
+
+50+ cities with this year's colour-change dates and how they compare to the historical normal. Maple and ginkgo peak at different times; both are included.
+
+```
+"When do autumn leaves peak in Kyoto vs Hokkaido?"
+→ City-by-city maple/ginkgo dates, days early or late vs average
+```
+
+**`get_koyo_best_dates`** — same idea as sakura best dates, for autumn
+
+Match your travel window to cities in peak colour.
+
+```
+"I'm in Japan late October, where for autumn leaves?"
+→ Cities in peak colour during your dates, maple vs ginkgo timing
+```
+
+**`get_koyo_spots`** — 687 viewing spots by prefecture
+
+Each spot has a peak window (start, peak, end), leaf type, popularity rating, and GPS.
+
+```
+"Top autumn leaves spots in Kyoto"
+→ Arashiyama, Eikando, Tofukuji, Rurikoin... with star rating and exact peak dates
+```
+
+---
 
 ### Flowers
 
-**`get_flowers`** — 80 curated spots across 8 flower types
-```
-"Where can I see wisteria in Japan?"
-→ 13 wisteria spots (Ashikaga, Kawachi, Kameido Tenjin...) with peak dates, GPS, official URLs
+**`get_flowers`** — 80 curated spots, 8 flower types, Jan through Oct
 
-"Best hydrangea temples in Kamakura?"
-→ Meigetsu-in, Hasedera, Engakuji + spots across Japan with June peak dates
-```
+| Type | Season | Notable spots |
+|------|---------|--------------|
+| Plum | Jan–Mar | Atami, Mito Kairakuen |
+| Nanohana | Feb–Apr | Chiba coast, Showa Kinen |
+| Wisteria | Apr–May | Ashikaga, Kawachi, Kameido Tenjin |
+| Iris | May–Jun | Meiji Jingu, Horikiri Shobuen |
+| Hydrangea | Jun–Jul | Meigetsu-in, Hasedera, Yatadera |
+| Lavender | Jun–Jul | Furano (Hokkaido) |
+| Sunflower | Jul–Aug | Zama, Hokuryu |
+| Cosmos | Sep–Oct | Showa Kinen, Hitachi Seaside |
 
-Supported types: `plum` (Jan-Mar) · `nanohana` (Feb-Apr) · `wisteria` (Apr-May) · `iris` (May-Jun) · `hydrangea` (Jun-Jul) · `lavender` (Jun-Jul) · `sunflower` (Jul-Aug) · `cosmos` (Sep-Oct)
+Filter by `type`, `prefecture`, or `month`. Each spot has an official URL and verified GPS.
 
-Filter by `type`, `prefecture`, or `month`.
+---
 
-### Festivals & Events
+### Festivals and events
 
-**`get_festivals`** — 52 major recurring Japanese events
+**`get_festivals`** — 52 major recurring events with official URLs and attendance figures
+
 ```
 "Best fireworks festivals in Japan?"
-→ Sumida River, Nagaoka, Omagari, PL Osaka... with dates, attendance, official site, GPS
+→ Sumida River (900k), Nagaoka (1.1M), Omagari, PL Osaka, Miyajima...
 
-"What festivals are in Kyoto in October?"
-→ Jidai Matsuri, Kurama Fire Festival with official URLs and tips
+"Festivals in Kyoto in October?"
+→ Jidai Matsuri (Oct 22), Kurama Fire Festival, with booking tips
 ```
 
-Filter by `type` (`fireworks` · `matsuri` · `winter`) and/or `month` and/or `prefecture`.
+Filter by `type` (fireworks / matsuri / winter), `month`, and `prefecture`.
 
-### Fruit Picking
+---
 
-**`get_fruit_seasons`** — Season calendar by month
+### Fruit picking
+
+**`get_fruit_seasons`** — full-year calendar for 14 fruits
+
+Which fruits are in season and at peak for any given month, with best regions and notes.
+
 ```
-"What fruit can I pick in September?"
-→ Grape (peak), Pear, Peach ending, Apple starting — with regions and farm tips
+"What fruit can I pick in September in Japan?"
+→ Grape at peak (Yamanashi, Nagano), Pear at peak, Peach ending, Apple starting
 ```
 
 **`get_fruit_farms`** — 350+ farms with GPS and booking links
+
+Pass `month=` and it auto-filters to farms with something in season. Add `region=` to narrow further.
+
 ```
-"Strawberry farms in May near Tokyo"
-→ Pass month=5 to auto-filter in-season farms, or filter by fruit + region
+"Strawberry farms near Tokyo in April"
+→ Farms in the Tokyo/Kanto area with strawberry in season, GPS + Jalan links
 ```
 
-Accepts `month` (auto-detects in-season fruits), `fruit`, `region`, and `limit`.
+---
 
 ### Weather
 
-**`get_weather_forecast`** — 3-day forecast for trip planning
-```
-"What's the weather in Osaka?"
-→ Temperature, rain probability (6-hour windows), wind, conditions
-```
+**`get_weather_forecast`** — 3-day JMA forecast for 51 cities
 
-## Bloom Scale
-
-The official Japan Meteorological Corporation scale, used for all 1,012 sakura spots:
+Temperature, rain probability by 6-hour window, and conditions. Worth checking because rain speeds up petal fall.
 
 ```
-BLOOM RATE (progress toward first bloom)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-0%          60%         85%        100%
-|  Bud stage  |  Swelling  | Opening | Bloom!
-   花芽〜つぼみ   膨らみ始め    開き始め    開花
-
-FULL BLOOM RATE (progress toward mankai/満開)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-0%     20%     40%     70%     90%   100%
-| Open | 30%  | 50%  | 70%  | Full bloom!
-  開花   三分咲き  五分咲き  七分咲き    満開
+"Weather in Osaka this weekend?"
+→ Min/max temp, rain % per 6-hour window, conditions
 ```
 
-## How It Works
+---
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph live["Live APIs (cached 1–6h)"]
+        JMC["Japan Meteorological Corp\nsakura · koyo · kawazu\n1,700+ spots · daily 9AM JST"]
+        JMA["Japan Met Agency\nweather · 51 cities\nhourly"]
+    end
+
+    subgraph static["Static datasets (loaded at startup)"]
+        DATA["flowers.json — 80 spots\nfestivals.json — 52 events\nfruit-farms.json — 350+ farms"]
+    end
+
+    subgraph server["japan-seasons-mcp"]
+        MCP["12 tools\n1 planning prompt\nstdio + HTTP transport"]
+    end
+
+    subgraph clients["MCP clients"]
+        C1["Claude Desktop\n/ Claude Code"]
+        C2["Cursor\n/ Windsurf"]
+        C3["Any MCP\nclient"]
+    end
+
+    JMC -->|live fetch| MCP
+    JMA -->|live fetch| MCP
+    DATA -->|in-memory| MCP
+    MCP -->|MCP protocol| C1
+    MCP -->|MCP protocol| C2
+    MCP -->|MCP protocol| C3
+```
+
+Static datasets load at startup and are served from memory with no disk I/O per request. Live JMC data is cached server-side (1–6h TTL). The all-spots payload is pre-gzipped at startup so repeat serving is essentially free.
+
+---
+
+## Bloom scale reference
+
+The official JMC scale used for all 1,012 sakura spots:
 
 ```
-┌──────────────────────────────────────────────┐
-│  Japan Meteorological Corporation APIs       │
-│  (n-kishou.co.jp)                            │
-│                                              │
-│  get-sakura-hw     → 48 city forecasts       │
-│  list-jr-points    → 1,012 sakura spots      │
-│  list-jr-points    → 687 koyo spots          │
-│  kawazu_info.json  → Kawazu cherry data      │
-│  koyo_*.json       → Autumn leaves forecasts │
-└──────────────┬───────────────────────────────┘
-               │ live API calls (cached 1-6 hours)
-               │
-┌──────────────▼───────────────────────────────┐
-│  japan-seasons-mcp                           │
-│                                              │
-│  stdio mode:  npx japan-seasons-mcp          │
-│  HTTP mode:   PORT=3000 ... --http           │
-│                                              │
-│  12 tools, 1 planning prompt                 │
-└──────────────┬───────────────────────────────┘
-               │ MCP protocol
-               │
-     ┌─────────┼─────────┐
-     │         │         │
-  Claude    ChatGPT   Gemini
+BLOOM RATE — progress toward first bloom (開花)
+─────────────────────────────────────────────────
+ 0%      60%       85%      100%
+ │  Bud   │ Swelling │ Opening │ <- First bloom!
+ 花芽〜つぼみ  膨らみ始め   開き始め    開花
+
+FULL BLOOM RATE — progress toward mankai / 満開
+─────────────────────────────────────────────────
+ 0%   20%   40%   70%   90%  100%
+ │Open│ 30% │ 50% │ 70% │Full │ <- Mankai!
+ 開花  三分咲き 五分咲き 七分咲き 満開
 ```
 
-## Season Guide
+Peak viewing is typically full bloom ± 3 days. Rain accelerates petal fall.
 
-| When | What to See | Tool |
-|------|-------------|------|
-| Jan-Feb | Kawazu cherry — deep pink, Izu Peninsula | `get_kawazu_cherry` |
-| Jan-Mar | Plum blossoms | `get_flowers` (type=plum) |
-| Feb-Apr | Rapeseed / nanohana fields | `get_flowers` (type=nanohana) |
-| Late Mar-Apr | Sakura begins Kyushu → Kansai → Kanto | `get_sakura_forecast`, `get_sakura_best_dates` |
-| Late Apr-May | Wisteria season, sakura in Tohoku & Hokkaido | `get_flowers` (type=wisteria) |
-| May-Jun | Iris gardens | `get_flowers` (type=iris) |
-| Jun-Jul | Hydrangea temples, lavender fields | `get_flowers` (type=hydrangea / lavender) |
-| Jul-Aug | Fireworks (hanabi) season, summer matsuri | `get_festivals` (type=fireworks / matsuri) |
-| Jul-Aug | Sunflower fields | `get_flowers` (type=sunflower) |
-| May-Nov | Fruit picking season | `get_fruit_seasons`, `get_fruit_farms` |
-| Sep-Oct | Cosmos fields, autumn matsuri | `get_flowers` (type=cosmos), `get_festivals` |
-| Oct-Dec | Autumn leaves — Hokkaido → Kyoto → Kyushu | `get_koyo_forecast`, `get_koyo_best_dates` |
-| Jan-Feb | Winter events — Sapporo Snow Festival, Shirakawa-go | `get_festivals` (type=winter) |
+---
+
+## Web app
+
+[seasons.kooexperience.com](https://seasons.kooexperience.com) is the interactive companion to this MCP server. It shows all the same data on a map — 1,012 sakura spots with lifecycle colours (orange bud, pink bloom, green ended), 687 koyo spots, 350+ fruit farms grouped by location, and 80 flower spots. There's also a "Plan My Trip" mode where you pick cities and see every seasonal activity near each one ranked by distance, and a "Near Me" button that finds spots within 30km of your GPS location.
+
+---
 
 ## Development
 
@@ -237,39 +334,41 @@ git clone https://github.com/haomingkoo/japan-seasons-mcp.git
 cd japan-seasons-mcp
 npm install
 npm run build
-npm start            # stdio mode
-npm run start:http   # HTTP mode on port 3000
+npm start            # stdio MCP mode
+npm run start:http   # HTTP mode, MCP at http://localhost:3000/mcp
 ```
 
-## Data Sources
+TypeScript. No external database. No auth required.
 
-- **[Japan Meteorological Corporation](https://n-kishou.com)** (日本気象株式会社) — Sakura & koyo forecasts, bloom rates, 1,700+ viewing spots
-- **[Japan Meteorological Agency](https://www.jma.go.jp)** (気象庁) — Weather forecasts via [tsukumijima API](https://weather.tsukumijima.net)
-- **[Jalan](https://www.jalan.net)** / **[Navitime](https://www.navitime.co.jp)** — Fruit picking farm listings (350+ farms)
-- **Curated** — 80 flower spots, 52 festival entries with official URLs
+---
 
-## Web App
+## Data sources
 
-Visit [seasons.kooexperience.com](https://seasons.kooexperience.com) for the interactive frontend — **Japan in Seasons**:
+| Source | What it provides |
+|--------|-----------------|
+| [Japan Meteorological Corporation](https://n-kishou.com) | Sakura and koyo forecasts, bloom percentages, 1,700+ viewing spots |
+| [Japan Meteorological Agency](https://www.jma.go.jp) via [tsukumijima](https://weather.tsukumijima.net) | City weather forecasts |
+| [Jalan](https://www.jalan.net) / [Navitime](https://www.navitime.co.jp) | Fruit picking farm listings |
+| Hand-curated | 80 flower spots, 52 festival entries, each with an official URL and verified GPS |
 
-- **Interactive map** with all 1,012 sakura spots + marker clustering
-- **Lifecycle colors** — orange (bud) → pink (bloom) → green (ended)
-- **Autumn leaves** — 687 spots with peak date windows
-- **Fruit picking** — 350+ farms, grouped by location, showing all in-season fruits per marker
-- **Flowers** — 80 spots across 8 flower types with official website links
-- **Festivals & What's On** — 52 events + fruit + flowers combined calendar view
-- **Plan My Trip** — pick cities, find nearby seasonal spots with distance
-- **Near Me** — uses your location to find spots within 30km
-- **Pinpoint weather** — exact-coordinate forecast via Open-Meteo
+---
+
+## Contributing
+
+PRs welcome, especially for flower spots, festival entries, and farm corrections. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
 
 ## Formerly
 
-Previously published as `japan-sakura-koyo-mcp` (deprecated). Install the new package:
+Previously published as `japan-sakura-koyo-mcp` (deprecated). Use this package instead:
 
 ```bash
 npx japan-seasons-mcp
 ```
 
+---
+
 ## License
 
-MIT
+[MIT](LICENSE) · Built by [Haoming Koo](https://kooexperience.com)

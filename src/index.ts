@@ -724,7 +724,7 @@ setInterval(() => {
 const isHttpMode = process.argv.includes("--http") || !!process.env.PORT;
 
 // Register tools on the module-level server (for stdio mode)
-const server = new McpServer({ name: "japan-seasons-mcp", version: "0.1.0" });
+const server = new McpServer({ name: "japan-seasons-mcp", version: "0.3.4" });
 registerAllTools(server);
 
 async function main() {
@@ -818,7 +818,7 @@ async function startHttpServer() {
       res.end(JSON.stringify({
         status: "ok",
         server: "japan-seasons-mcp",
-        version: "0.1.0",
+        version: "0.3.4",
         activeSessions: transports.size,
         ...stats.toJSON(),
       }));
@@ -887,7 +887,7 @@ async function startHttpServer() {
         };
       }
 
-      const sessionServer = new McpServer({ name: "japan-seasons-mcp", version: "0.1.0" });
+      const sessionServer = new McpServer({ name: "japan-seasons-mcp", version: "0.3.4" });
       registerAllTools(sessionServer);
       await sessionServer.connect(transport);
 
