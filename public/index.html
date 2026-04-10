@@ -179,7 +179,7 @@
       </div>
       <div id="bloom-filters" style="display:none;padding:8px 12px;border-bottom:1px solid var(--gray-200);gap:4px;">
         <button class="filter-pill active" data-filter="all" onclick="applyBloomFilter('all',this)">All</button>
-        <button class="filter-pill" data-filter="buds" onclick="applyBloomFilter('buds',this)">🌷 Budding</button>
+        <button class="filter-pill" data-filter="buds" onclick="applyBloomFilter('buds',this)">🌰 Budding</button>
         <button class="filter-pill" data-filter="blooming" onclick="applyBloomFilter('blooming',this)">🌸 Blooming</button>
         <button class="filter-pill" data-filter="peak" onclick="applyBloomFilter('peak',this)">🌺 Full Bloom</button>
         <button class="filter-pill" data-filter="ended" onclick="applyBloomFilter('ended',this)">🍃 Past Peak</button>
@@ -799,8 +799,26 @@ async function loadPrefSpots(prefCode, prefName) {
 
 function flyToSpot(lat, lon, name, bloomRate, fullRate, status) {
   mapInstance.flyTo([lat, lon], 14, { duration: 0.8 });
+  const isEnded = status.includes('Ended') || status.includes('Falling') || status.includes('green');
+  const statusColor = isEnded ? '#4ade80' : '#be185d';
+  const rate = fullRate > 0 ? fullRate : bloomRate;
+  const label = fullRate > 0 ? 'Flowering' : 'Growth';
+  const grad = fullRate > 0 ? 'linear-gradient(90deg,#f9a8d4,#be185d)' : 'linear-gradient(90deg,#fdba74,#f97316)';
+  const barHtml = !isEnded && rate > 0 ? `<div style="margin:8px 0">
+    <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:3px"><span>${label}</span><span>${rate}%</span></div>
+    <div style="height:14px;background:#f0f0f0;border-radius:7px;overflow:hidden">
+      <div style="width:${Math.min(rate,100)}%;height:100%;background:${grad};border-radius:7px"></div>
+    </div></div>` : '';
   L.popup().setLatLng([lat, lon])
-    .setContent(`<b>${name}</b><br>Bloom: ${bloomRate}% &middot; Full: ${fullRate}%<br>${status}`)
+    .setContent(`<div style="min-width:220px">
+      <b>${name}</b>
+      ${barHtml}
+      <div style="margin:4px 0"><b style="color:${statusColor}">${status}</b></div>
+      <div class="popup-weather" data-lat="${lat}" data-lon="${lon}" style="font-size:11px;color:#555;margin-top:6px;padding-top:6px;border-top:1px solid #eee;min-height:54px">
+        <div style="color:#ccc;font-size:11px">Loading weather…</div>
+      </div>
+      <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>
+    </div>`)
     .openOn(mapInstance);
 }
 
