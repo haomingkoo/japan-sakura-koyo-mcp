@@ -11,7 +11,7 @@ import {
 } from "./lib/sakura-forecast.js";
 import { getKoyoForecast, getKoyoSpots } from "./lib/koyo.js";
 import { getWeatherForecast } from "./lib/weather.js";
-import { pMap } from "./lib/fetch.js";
+import { pMapSettled } from "./lib/fetch.js";
 import { logger } from "./lib/logger.js";
 
 // ── Minimal shared spot type ──────────────────────────────────────────────────
@@ -29,8 +29,11 @@ const STATIC = {
   farms:     loadStatic("fruit-farms.json"),
 };
 
-// ── Server-side weather cache: keyed by "lat,lon", 1-hour TTL ──
-// Shared across users — second person to open the same spot gets instant response.
+// ── Server-side caches — shared across users, 1-hour TTL ──
+// All-spots: 47 upstream requests → cache aggressively so only first user pays the cost.
+const ALL_SPOTS_CACHE_TTL = 3_600_000; // 1 hour
+const allSpotsCache = new Map<string, { data: unknown; ts: number }>();
+
 const spotWeatherCache = new Map<string, { data: unknown; ts: number }>();
 
 // ── Response helpers ──
@@ -100,17 +103,21 @@ export async function handleApiRequest(
 
     // GET /api/sakura/all-spots — load all 1,012 spots across Japan
     if (pathname === "/api/sakura/all-spots") {
+      const cached = allSpotsCache.get("sakura");
+      if (cached && Date.now() - cached.ts < ALL_SPOTS_CACHE_TTL) {
+        json(res, cached.data, 200, 3600);
+        return true;
+      }
       const allSpots: unknown[] = [];
       const prefCodes = Array.from({ length: 47 }, (_, i) => String(i + 1).padStart(2, "0"));
-      const results = await Promise.allSettled(
-        await pMap(prefCodes, (code) => getSakuraSpots(code), 5)
-      );
+      const results = await pMapSettled(prefCodes, (code) => getSakuraSpots(code), 5);
       for (const r of results) {
-        if (r.status === "fulfilled" && r.value.spots) {
-          allSpots.push(...r.value.spots);
-        }
+        if (r.status === "fulfilled" && r.value.spots) allSpots.push(...r.value.spots);
+        else if (r.status === "rejected") logger.warn(`all-spots sakura: ${r.reason}`);
       }
-      json(res, { totalSpots: allSpots.length, spots: allSpots });
+      const data = { totalSpots: allSpots.length, spots: allSpots };
+      allSpotsCache.set("sakura", { data, ts: Date.now() });
+      json(res, data, 200, 3600);
       return true;
     }
 
@@ -142,17 +149,21 @@ export async function handleApiRequest(
 
     // GET /api/koyo/all-spots — load all koyo spots across 47 prefectures
     if (pathname === "/api/koyo/all-spots") {
+      const cached = allSpotsCache.get("koyo");
+      if (cached && Date.now() - cached.ts < ALL_SPOTS_CACHE_TTL) {
+        json(res, cached.data, 200, 3600);
+        return true;
+      }
       const allSpots: unknown[] = [];
       const prefCodes = Array.from({ length: 47 }, (_, i) => String(i + 1).padStart(2, "0"));
-      const results = await Promise.allSettled(
-        await pMap(prefCodes, (code) => getKoyoSpots(code), 5)
-      );
+      const results = await pMapSettled(prefCodes, (code) => getKoyoSpots(code), 5);
       for (const r of results) {
-        if (r.status === "fulfilled" && r.value.spots) {
-          allSpots.push(...r.value.spots);
-        }
+        if (r.status === "fulfilled" && r.value.spots) allSpots.push(...r.value.spots);
+        else if (r.status === "rejected") logger.warn(`all-spots koyo: ${r.reason}`);
       }
-      json(res, { totalSpots: allSpots.length, spots: allSpots });
+      const data = { totalSpots: allSpots.length, spots: allSpots };
+      allSpotsCache.set("koyo", { data, ts: Date.now() });
+      json(res, data, 200, 3600);
       return true;
     }
 

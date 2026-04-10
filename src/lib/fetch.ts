@@ -132,3 +132,18 @@ export async function pMap<T, R>(
   }
   return results;
 }
+
+// pMapSettled: like pMap but uses allSettled per chunk — partial failures don't abort the run.
+// Use this for fan-out requests where some prefectures may be unavailable.
+export async function pMapSettled<T, R>(
+  items: T[],
+  fn: (item: T) => Promise<R>,
+  concurrency: number
+): Promise<PromiseSettledResult<R>[]> {
+  const results: PromiseSettledResult<R>[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const chunk = items.slice(i, i + concurrency);
+    results.push(...await Promise.allSettled(chunk.map(fn)));
+  }
+  return results;
+}

@@ -149,10 +149,47 @@ function initMap() {
 
 // ── Helpers ──
 const $ = id => document.getElementById(id);
+
+// Escape user/API-sourced strings before inserting into innerHTML.
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 async function api(path) {
   const r = await fetch(path);
   if (!r.ok) throw new Error(`Error: ${r.status}`);
   return r.json();
+}
+
+// sessionStorage cache — survives page refresh, expires after 1 hour
+const SESSION_TTL = 3_600_000;
+function sessionGet(key) {
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > SESSION_TTL) { sessionStorage.removeItem(key); return null; }
+    return data;
+  } catch { return null; }
+}
+function sessionSet(key, data) {
+  try { sessionStorage.setItem(key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
+// ── Farm popup — single source, used in trip/fruit/whatson modes ──
+function farmPopupHtml(farm, m) {
+  const emoji = FRUITS.find(f => farm.fruits?.includes(f.name) && (m ? f.months.includes(m) : true))?.emoji || '🌿';
+  const srcLabel = farm.source === 'jalan' ? 'Jalan' : 'Navitime';
+  return `<div style="min-width:170px">
+    <b>${esc(farm.name)}</b><br>
+    <span style="font-size:11px;color:#666">${esc(farm.address||'')}</span><br>
+    <span style="font-size:11px">${(farm.fruits||[]).map(esc).join(' · ')}</span>
+    <div style="margin-top:6px">
+      <a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>
+      ${farm.url ? ` &middot; <a href="${esc(farm.url)}" target="_blank" style="color:#0369a1;font-size:12px">${esc(srcLabel)} →</a>` : ''}
+    </div>
+  </div>`;
 }
 function fmtDate(iso) {
   if (!iso) return '—';
@@ -1370,7 +1407,7 @@ async function searchTrip() {
           const mk = L.marker([farm.lat, farm.lon], {
             icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.green};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emoji}</div>`, className: '', iconSize: [22, 22], iconAnchor: [11, 11] })
           });
-          mk.bindPopup(`<div style="min-width:170px"><b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>${farm.url ? ` &middot; <a href="${farm.url}" target="_blank" style="color:#0369a1;font-size:12px">${srcLabel} →</a>` : ''}</div></div>`);
+          mk.bindPopup(farmPopupHtml(farm, m));
           clusterGroup.addLayer(mk);
         }
         mapInstance.addLayer(clusterGroup);
@@ -1522,7 +1559,7 @@ async function searchTrip() {
       const mk = L.marker([farm.lat, farm.lon], {
         icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.green};border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emoji}</div>`, className: '', iconSize: [24, 24], iconAnchor: [12, 12] })
       });
-      mk.bindPopup(`<div style="min-width:180px"><b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>${farm.url ? ` &middot; <a href="${farm.url}" target="_blank" style="color:#0369a1;font-size:12px">${srcLabel} →</a>` : ''}</div></div>`);
+      mk.bindPopup(farmPopupHtml(farm, m));
       mk.addTo(mapInstance);
       markers.push(mk);
       bounds.push([farm.lat, farm.lon]);
@@ -1697,7 +1734,7 @@ async function findNearMe() {
 // ── Shared spot popup/card HTML builders ──
 
 function spotPopupHtml(spot) {
-  const displayName = spot.nameRomaji ? `${spot.name} <span style="color:#888">${spot.nameRomaji}</span>` : spot.name;
+  const displayName = spot.nameRomaji ? `${esc(spot.name)} <span style="color:#888">${esc(spot.nameRomaji)}</span>` : esc(spot.name);
   const liveStatus = spotStatusWithDate(spot.bloomRate, spot.fullRate, spot.fullBloomForecast) || spot.status;
   const isEnded = liveStatus.includes('Ended') || liveStatus.includes('Falling') || liveStatus.includes('Past peak') || liveStatus.includes('green');
 
@@ -1732,7 +1769,7 @@ function spotPopupHtml(spot) {
 
 function spotCardHtml(spot, extra) {
   return `<div class="spot-item" onclick="handleSpotClick(${reg({action:'flyToSpot',lat:spot.lat,lon:spot.lon,name:spot.name,bloomRate:spot.bloomRate,fullRate:spot.fullRate,status:spot.status})})">
-    <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''}</h4>
+    <h4>${esc(spot.name)} ${spot.nameRomaji ? `<span style="font-weight:400;color:var(--gray-600)">${esc(spot.nameRomaji)}</span>` : ''}</h4>
     ${bloomBar(spot.bloomRate, spot.fullRate, spot.fullBloomForecast)}
     <div class="sub" style="margin-top:4px">
       ${extra ? extra + ' &middot; ' : ''}${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}
@@ -1779,7 +1816,11 @@ async function loadWeatherCard(cityName) {
 async function loadAllSpotsOnMap() {
   try {
     if (!allSpotsData) {
-      allSpotsData = await api('/api/sakura/all-spots');
+      allSpotsData = sessionGet('allSpots');
+      if (!allSpotsData) {
+        allSpotsData = await api('/api/sakura/all-spots');
+        sessionSet('allSpots', allSpotsData);
+      }
     }
 
     clusterGroup = L.markerClusterGroup({
@@ -2057,7 +2098,7 @@ function renderWhatsOn(m) {
       const mk = L.marker([farm.lat, farm.lon], {
         icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.green};border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,0.15)">${emoji}</div>`, className: '', iconSize: [20, 20], iconAnchor: [10, 10] })
       });
-      mk.bindPopup(`<b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a></div>`);
+      mk.bindPopup(farmPopupHtml(farm, m));
       clusterGroup.addLayer(mk);
     }
     mapInstance.addLayer(clusterGroup);
