@@ -326,6 +326,19 @@ function bloomCategory(bloomRate, fullRate, fullBloomForecast) {
   return 'dormant';
 }
 
+function matchesBloomFilter(category) {
+  return bloomFilters.size === 0 || bloomFilters.has(category);
+}
+
+function cityBloomCategory(city) {
+  const status = city?.status || '';
+  if (status.includes('Ended')) return 'ended';
+  if (status.includes('Full bloom') || status.includes('mankai') || status.includes('best')) return 'peak';
+  if (status.includes('Bloom') || status.includes('bloom') || status.includes('Approaching') || status.includes('Falling') || status.includes('咲き')) return 'blooming';
+  if (status.includes('Coming') || status.includes('soon') || status.includes('Bud') || status.includes('つぼみ')) return 'buds';
+  return 'dormant';
+}
+
 function applyBloomFilter(filter, el) {
   const allBtn = document.querySelector('.filter-pill[data-filter="all"]');
 
@@ -347,7 +360,7 @@ function applyBloomFilter(filter, el) {
   bloomFilter = bloomFilters.size === 1 ? [...bloomFilters][0] : 'all'; // legacy compat
 
   if (!allSpotsData) return;
-  if (clusterGroup) { mapInstance.removeLayer(clusterGroup); clusterGroup = null; }
+  clearMarkers();
   loadAllSpotsOnMap();
 
   if (bloomFilters.size === 0) {
@@ -370,7 +383,7 @@ function applyBloomFilter(filter, el) {
   } else {
     const labelMap = { peak:'🌺 Full Bloom', blooming:'🌸 Blooming', buds:'🌷 Budding', ended:'🍃 Past Peak' };
     const labels = [...bloomFilters].map(f => labelMap[f]).join(' + ');
-    const filtered = allSpotsData.spots.filter(s => bloomFilters.has(bloomCategory(s.bloomRate, s.fullRate, s.fullBloomForecast)));
+    const filtered = allSpotsData.spots.filter(s => matchesBloomFilter(bloomCategory(s.bloomRate, s.fullRate, s.fullBloomForecast)));
     const listHtml = filtered.length
       ? filtered.slice(0, 80).map(s => spotCardHtml(s, s.prefecture || '')).join('')
       : '<div class="loading">No spots found for this filter.</div>';
@@ -1960,7 +1973,7 @@ async function loadAllSpotsOnMap() {
 
     for (const spot of allSpotsData.spots) {
       if (!spot.lat || !spot.lon) continue;
-      if (bloomFilters.size > 0 && !bloomFilters.has(bloomCategory(spot.bloomRate, spot.fullRate, spot.fullBloomForecast))) continue;
+      if (!matchesBloomFilter(bloomCategory(spot.bloomRate, spot.fullRate, spot.fullBloomForecast))) continue;
       const color = sakuraColor(spot.bloomRate, spot.fullRate, spot.fullBloomForecast);
       const radius = sakuraRadius(spot.bloomRate, spot.fullRate, spot.fullBloomForecast);
       const marker = L.circleMarker([spot.lat, spot.lon], {
@@ -1977,6 +1990,7 @@ async function loadAllSpotsOnMap() {
       const kawazu = await api('/api/kawazu');
       for (const spot of kawazu.spots || []) {
         if (!spot.lat || !spot.lon) continue;
+        if (!matchesBloomFilter(bloomCategory(spot.bloomRate, spot.fullRate, spot.fullBloomForecast))) continue;
         const kEnded = spotStatusWithDate(spot.bloomRate, spot.fullRate, spot.fullBloomForecast)?.includes('Ended');
         const kawazuColor = kEnded ? C.ended : C.kawazu;
         const m = L.marker([spot.lat, spot.lon], {
@@ -2003,6 +2017,7 @@ async function loadAllSpotsOnMap() {
       for (const city of region.cities) {
         const coords = CITY_COORDS[city.cityName];
         if (!coords) continue;
+        if (!matchesBloomFilter(cityBloomCategory(city))) continue;
         const color = statusToColor(city.status);
         const radius = statusToRadius(city.status);
         const marker = L.circleMarker(coords, {

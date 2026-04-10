@@ -1,6 +1,7 @@
 {
   "name": "japan-seasons-mcp",
   "version": "0.3.5",
+  "mcpName": "io.github.haomingkoo/japan-seasons",
   "description": "Year-round Japan seasonal travel — cherry blossom, autumn leaves, fruit picking, flowers & more. 1,700+ spots with live data. MCP server powered by Japan Meteorological Corporation.",
   "type": "module",
   "main": "dist/index.js",
@@ -47,6 +48,11 @@
     "autumn-leaves-forecast"
   ],
   "author": "Haoming Koo",
+  "homepage": "https://github.com/haomingkoo/japan-seasons-mcp",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/haomingkoo/japan-seasons-mcp.git"
+  },
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

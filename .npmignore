@@ -21,3 +21,20 @@ test-*.js
 
 # GitHub Actions
 .github/
+
+# Screenshots and scripts (not needed in package)
+screenshots/
+scripts/
+
+# MCP Registry publisher artifacts
+mcp-publisher
+server.json
+.mcpregistry_github_token
+.mcpregistry_registry_token
+
+# Source maps
+dist/*.map
+dist/**/*.map
+
+# Verification scripts
+verify-*.mjs

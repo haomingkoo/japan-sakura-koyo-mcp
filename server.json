@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.haomingkoo/japan-seasons",
+  "description": "Live Japan travel data: sakura, koyo, fruit picking, flowers & festivals. 1,700+ spots from JMC.",
+  "repository": {
+    "url": "https://github.com/haomingkoo/japan-seasons-mcp",
+    "source": "github"
+  },
+  "version": "0.3.5",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "japan-seasons-mcp",
+      "version": "0.3.5",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ]
+}
