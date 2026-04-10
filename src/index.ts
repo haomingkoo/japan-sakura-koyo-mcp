@@ -840,18 +840,28 @@ async function startHttpServer() {
       if (handled) return;
     }
 
-    // Serve frontend
-    if (url.pathname === "/") {
+    // Serve frontend static files
+    const staticFiles: Record<string, { file: string; mime: string }> = {
+      "/":         { file: "index.html", mime: "text/html; charset=utf-8" },
+      "/app.css":  { file: "app.css",    mime: "text/css; charset=utf-8" },
+      "/app.js":   { file: "app.js",     mime: "application/javascript; charset=utf-8" },
+    };
+    const staticEntry = staticFiles[url.pathname];
+    if (staticEntry) {
       try {
         const __dirname = dirname(fileURLToPath(import.meta.url));
-        const htmlPath = join(__dirname, "..", "public", "index.html");
-        const html = readFileSync(htmlPath, "utf-8");
-        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-        res.end(html);
+        const filePath = join(__dirname, "..", "public", staticEntry.file);
+        const content = readFileSync(filePath, "utf-8");
+        res.writeHead(200, { "Content-Type": staticEntry.mime, "Cache-Control": "public, max-age=300" });
+        res.end(content);
       } catch {
-        res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(`<!DOCTYPE html><html><body><h1>japan-seasons-mcp</h1>
+        if (url.pathname === "/") {
+          res.writeHead(200, { "Content-Type": "text/html" });
+          res.end(`<!DOCTYPE html><html><body><h1>japan-seasons-mcp</h1>
 <p>MCP endpoint: <code>https://${req.headers.host}/mcp</code></p></body></html>`);
+        } else {
+          res.writeHead(404).end("Not found");
+        }
       }
       return;
     }
