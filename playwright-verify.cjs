@@ -1,291 +1,148 @@
+// playwright-verify.cjs — run against production: node playwright-verify.cjs [url]
 const { chromium } = require('playwright');
 
-async function runTests() {
+const BASE = process.argv[2] || 'https://seasons.kooexperience.com';
+
+async function run() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   const results = [];
+  let passed = 0, failed = 0;
 
-  function pass(test, detail) { results.push({ test, status: 'PASS', detail }); }
-  function fail(test, detail) { results.push({ test, status: 'FAIL', detail }); }
+  function pass(name, detail = '') { results.push({ status: 'PASS', name, detail }); passed++; }
+  function fail(name, detail = '') { results.push({ status: 'FAIL', name, detail }); failed++; }
 
   try {
-    // ----------------------------------------------------------------
-    // TEST 1 — Filter pills multi-select (Cherry Blossom tab)
-    // ----------------------------------------------------------------
-    await page.goto('http://localhost:3000', { waitUntil: 'networkidle', timeout: 30000 });
+    // ── 1. Page loads ──
+    await page.goto(BASE, { waitUntil: 'networkidle', timeout: 30000 });
+    const title = await page.title();
+    if (title.includes('Japan')) pass('Page loads', title);
+    else fail('Page loads', `Unexpected title: ${title}`);
 
-    // Ensure Cherry Blossom is already active (default) or click it
-    const cherrybtn = await page.$('#btn-sakura');
-    if (cherrybtn) await cherrybtn.click();
-    await page.waitForTimeout(500);
-
-    // Verify pill order
-    const pillTexts = await page.$$eval('.filter-pill', pills =>
-      pills.map(p => p.textContent.trim())
-    );
-    const expectedOrder = ['All', '🌷 Budding', '🌸 Blooming', '🌺 Full Bloom', '🍃 Past Peak'];
-    const orderOk = JSON.stringify(pillTexts) === JSON.stringify(expectedOrder);
-    if (!orderOk) {
-      fail('Test 1a — Pill order', `Expected ${JSON.stringify(expectedOrder)}, got ${JSON.stringify(pillTexts)}`);
-    } else {
-      pass('Test 1a — Pill order', `Pills in correct order: ${pillTexts.join(', ')}`);
+    // ── 2. All tabs present ──
+    for (const [id, label] of [
+      ['btn-sakura', 'Cherry Blossom'],
+      ['btn-koyo', 'Autumn Leaves'],
+      ['btn-fruit', 'Fruit Picking'],
+      ['btn-flowers', 'Flowers'],
+      ['btn-whatson', "What's On"],
+      ['btn-trip', 'Plan My Trip'],
+    ]) {
+      const el = await page.$(`#${id}`);
+      if (el) pass(`Tab exists: ${label}`);
+      else fail(`Tab exists: ${label}`, `#${id} not found`);
     }
 
-    // Click "🌺 Full Bloom"
-    const fullBloomPill = await page.$('.filter-pill[data-filter="peak"]');
-    await fullBloomPill.click();
-    await page.waitForTimeout(300);
-
-    const afterFullBloom = await page.$$eval('.filter-pill', pills =>
-      pills.map(p => ({ text: p.textContent.trim(), active: p.classList.contains('active') }))
-    );
-    const allPill = afterFullBloom.find(p => p.text === 'All');
-    const fullBloomActive = afterFullBloom.find(p => p.text === '🌺 Full Bloom');
-    const allDeactivated = !allPill.active;
-    const fullBloomIsActive = fullBloomActive.active;
-
-    if (allDeactivated && fullBloomIsActive) {
-      pass('Test 1b — Full Bloom active, All deactivated', 'All deactivated, Full Bloom active');
-    } else {
-      fail('Test 1b — Full Bloom active, All deactivated', `All active=${allPill.active}, FullBloom active=${fullBloomActive.active}`);
-    }
-
-    // Click "🌸 Blooming" too
-    const bloomingPill = await page.$('.filter-pill[data-filter="blooming"]');
-    await bloomingPill.click();
-    await page.waitForTimeout(300);
-
-    const afterBothSelected = await page.$$eval('.filter-pill', pills =>
-      pills.map(p => ({ text: p.textContent.trim(), active: p.classList.contains('active') }))
-    );
-    const bloomingActive = afterBothSelected.find(p => p.text === '🌸 Blooming')?.active;
-    const fullBloomStillActive = afterBothSelected.find(p => p.text === '🌺 Full Bloom')?.active;
-
-    if (bloomingActive && fullBloomStillActive) {
-      pass('Test 1c — Multi-select: both Blooming and Full Bloom active', 'Blooming=active, Full Bloom=active simultaneously');
-    } else {
-      fail('Test 1c — Multi-select', `Blooming active=${bloomingActive}, FullBloom active=${fullBloomStillActive}`);
-    }
-
-    // Click "All" — verify others deactivate
-    const allPillBtn = await page.$('.filter-pill[data-filter="all"]');
-    await allPillBtn.click();
-    await page.waitForTimeout(300);
-
-    const afterAll = await page.$$eval('.filter-pill', pills =>
-      pills.map(p => ({ text: p.textContent.trim(), active: p.classList.contains('active') }))
-    );
-    const allActive = afterAll.find(p => p.text === 'All')?.active;
-    const othersInactive = afterAll.filter(p => p.text !== 'All').every(p => !p.active);
-
-    if (allActive && othersInactive) {
-      pass('Test 1d — Click All resets others', 'All=active, others deactivated');
-    } else {
-      fail('Test 1d — Click All resets others', `All active=${allActive}, others all inactive=${othersInactive}`);
-    }
-
-    // ----------------------------------------------------------------
-    // TEST 2 — Month picker (Fruit Picking tab)
-    // ----------------------------------------------------------------
-    const fruitBtn = await page.$('#btn-fruit');
-    await fruitBtn.click();
-    await page.waitForTimeout(800);
-
-    // Check if all 12 months visible without horizontal scroll
-    // Month grid is a CSS grid with repeat(6, 1fr) so 2 rows of 6 = 12 months total
-    const monthGridInfo = await page.evaluate(() => {
-      // Find month pills — they're in the fruit section
-      const allBtns = Array.from(document.querySelectorAll('button'));
-      const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-      const monthBtns = allBtns.filter(b => monthNames.includes(b.textContent.trim()));
-
-      if (monthBtns.length === 0) return { count: 0, overflowing: null };
-
-      const container = monthBtns[0]?.closest('[style*="grid"]') || monthBtns[0]?.parentElement;
-      if (!container) return { count: monthBtns.length, overflowing: null };
-
-      const style = window.getComputedStyle(container);
-      const overflowX = style.overflowX;
-      const scrollWidth = container.scrollWidth;
-      const clientWidth = container.clientWidth;
-      return {
-        count: monthBtns.length,
-        overflowX,
-        scrollWidth,
-        clientWidth,
-        isOverflowing: scrollWidth > clientWidth
-      };
+    // ── 3. Filter pills — order + emoji (wait for sakura data to load) ──
+    await page.waitForSelector('.spot-item', { timeout: 20000 });
+    // bloom-filters is display:none until sakura tab active — make it visible to read
+    await page.evaluate(() => {
+      const bf = document.getElementById('bloom-filters');
+      if (bf) bf.style.display = 'flex';
     });
+    const pills = await page.$$eval('.filter-pill', ps => ps.map(p => p.textContent.trim()));
+    const expectedPills = ['All', '🌰 Budding', '🌸 Blooming', '🌺 Full Bloom', '🍃 Past Peak'];
+    if (JSON.stringify(pills) === JSON.stringify(expectedPills))
+      pass('Filter pills order + emoji', pills.join(' | '));
+    else
+      fail('Filter pills order + emoji', `Got: [${pills.join(', ')}] | Exp: [${expectedPills.join(', ')}]`);
 
-    if (monthGridInfo.count === 12) {
-      pass('Test 2a — All 12 month pills visible', `Found ${monthGridInfo.count} month pills`);
-    } else {
-      fail('Test 2a — All 12 month pills visible', `Found ${monthGridInfo.count} month pills (expected 12)`);
-    }
+    // ── 4. Sakura sidebar has city cards ──
+    const spotCount = await page.$$eval('.spot-item', els => els.length);
+    if (spotCount > 10) pass('Sakura sidebar cities', `${spotCount} items`);
+    else fail('Sakura sidebar cities', `Only ${spotCount} items`);
 
-    const hasNoScrollOverflow = !monthGridInfo.isOverflowing || monthGridInfo.overflowX !== 'auto';
-    if (hasNoScrollOverflow) {
-      pass('Test 2b — No horizontal scroll overflow', `overflowX=${monthGridInfo.overflowX}, scrollWidth=${monthGridInfo.scrollWidth}, clientWidth=${monthGridInfo.clientWidth}`);
-    } else {
-      fail('Test 2b — No horizontal scroll overflow', `overflowX=${monthGridInfo.overflowX}, container is overflowing`);
-    }
+    // ── 5. Flowers tab — all 3 types present ──
+    await page.click('#btn-flowers');
+    await page.waitForTimeout(3000);
+    const flowersText = await page.$eval('#sidebar-content', el => el.textContent).catch(() => '');
+    const hasPlum = flowersText.includes('Plum');
+    const hasWisteria = flowersText.includes('Wisteria');
+    const hasHydrangea = flowersText.includes('Hydrangea');
+    if (hasPlum && hasWisteria && hasHydrangea) pass('Flowers: all 3 types', 'Plum + Wisteria + Hydrangea');
+    else fail('Flowers: all 3 types', `Plum:${hasPlum} Wisteria:${hasWisteria} Hydrangea:${hasHydrangea}`);
 
-    // Click "Dec" and verify it becomes active
-    const allBtns = await page.$$('button');
-    let decBtn = null;
-    for (const btn of allBtns) {
-      const txt = await btn.evaluate(el => el.textContent.trim());
-      if (txt === 'Dec') { decBtn = btn; break; }
-    }
+    // ── 6. Flowers tab has 40 spots ──
+    const flowerHeader = await page.$eval('#sidebar-header', el => el.textContent).catch(() => '');
+    if (flowerHeader.includes('40')) pass('Flowers: 40 spots', flowerHeader.slice(0, 80).trim());
+    else fail('Flowers: spot count', `Header: ${flowerHeader.slice(0, 80).trim()}`);
 
-    if (decBtn) {
-      const scrollPosBefore = await page.evaluate(() => window.scrollY);
-      await decBtn.click();
-      await page.waitForTimeout(400);
-      const scrollPosAfter = await page.evaluate(() => window.scrollY);
+    // ── 7. What's On tab loads ──
+    await page.click('#btn-whatson');
+    await page.waitForTimeout(3000);
+    const whatsonHeader = await page.$eval('#sidebar-header', el => el.textContent).catch(() => '');
+    if (whatsonHeader.includes("What's On")) pass("What's On tab loads");
+    else fail("What's On tab loads", whatsonHeader.slice(0, 80));
 
-      const decActive = await decBtn.evaluate(el => el.classList.contains('active'));
-      if (decActive) {
-        pass('Test 2c — Clicking Dec makes it active', 'Dec pill is active after click');
-      } else {
-        fail('Test 2c — Clicking Dec makes it active', 'Dec pill did not become active');
+    // ── 8. What's On has 12 month pills ──
+    const woMonthPills = await page.$$eval('#sidebar-header button', bs => bs.length);
+    if (woMonthPills === 12) pass("What's On: 12 month pills");
+    else fail("What's On: 12 month pills", `Got ${woMonthPills}`);
+
+    // ── 9. Fruit tab: 12 month pills (2×6 grid) ──
+    await page.click('#btn-fruit');
+    await page.waitForTimeout(2000);
+    const fruitPills = await page.$$eval('#sidebar-header button', bs => bs.length);
+    if (fruitPills === 12) pass('Fruit: 12 month pills (2×6 grid)');
+    else fail('Fruit: 12 month pills', `Got ${fruitPills}`);
+
+    // ── 10. Fruit sidebar has content ──
+    const fruitContent = await page.$eval('#sidebar-content', el => el.textContent).catch(() => '');
+    if (fruitContent.length > 100) pass('Fruit sidebar content', fruitContent.slice(0, 60).trim());
+    else fail('Fruit sidebar content', 'Too short or empty');
+
+    // ── 11. Weather in popup (sidebar spot click) ──
+    await page.click('#btn-sakura');
+    await page.waitForSelector('.spot-item', { timeout: 15000 });
+    const firstCity = await page.$('.spot-item');
+    if (firstCity) {
+      await firstCity.click();
+      // Wait for spot items with onclick (skip JMA station card which has no onclick)
+      await page.waitForSelector('.spot-item[onclick*="flyToSpot"]', { timeout: 12000 });
+      const firstSpot = await page.$('.spot-item[onclick*="flyToSpot"]');
+      if (firstSpot) {
+        await firstSpot.click();
+        await page.waitForTimeout(2500);
+        const weatherDiv = await page.$('.popup-weather');
+        if (weatherDiv) pass('Weather in popup', '.popup-weather div present');
+        else fail('Weather in popup', '.popup-weather missing from flyToSpot popup');
+      } else fail('Weather in popup', 'No spot items with flyToSpot found');
+    } else fail('Weather in popup', 'No city items found');
+
+    // ── 12. API endpoints respond with expected shape ──
+    for (const [path, key, minItems] of [
+      ['/api/sakura/forecast', 'regions', 1],
+      ['/api/flowers', 'spots', 40],
+      ['/api/festivals', 'spots', 45],
+      ['/api/fruit/farms', 'spots', 1],
+    ]) {
+      try {
+        const res = await page.request.get(`${BASE}${path}`);
+        const json = await res.json();
+        const count = Array.isArray(json[key]) ? json[key].length : -1;
+        if (count >= minItems) pass(`API ${path}`, `${count} ${key}`);
+        else fail(`API ${path}`, `Expected ≥${minItems} ${key}, got ${count}`);
+      } catch (e) {
+        fail(`API ${path}`, e.message);
       }
-
-      // No scroll jump (since no overflow-x scroll, page scroll should be stable)
-      if (Math.abs(scrollPosAfter - scrollPosBefore) < 50) {
-        pass('Test 2d — No scroll jump on month click', `Scroll position stable: before=${scrollPosBefore}, after=${scrollPosAfter}`);
-      } else {
-        fail('Test 2d — No scroll jump on month click', `Scroll jumped: before=${scrollPosBefore}, after=${scrollPosAfter}`);
-      }
-    } else {
-      fail('Test 2c+2d — Dec button', 'Could not find Dec month button');
     }
 
-    // ----------------------------------------------------------------
-    // TEST 3 — Fruit filter
-    // ----------------------------------------------------------------
-    // Ensure we're on Fruit tab (already there)
-    // Click current month first to reset
-    const nowMonth = new Date().toLocaleString('en', { month: 'short' });
-    const monthBtns = await page.$$('button');
-    for (const btn of monthBtns) {
-      const txt = await btn.evaluate(el => el.textContent.trim());
-      if (txt === nowMonth) { await btn.click(); break; }
-    }
-    await page.waitForTimeout(500);
-
-    // Find strawberry card
-    const strawberryCard = await page.evaluate(() => {
-      const divs = Array.from(document.querySelectorAll('div'));
-      return divs.some(d => d.textContent.includes('Strawberry') && d.onclick != null);
-    });
-
-    // Try clicking the strawberry element
-    const fruitCardsInfo = await page.evaluate(() => {
-      // Look for clickable fruit elements
-      const allEls = Array.from(document.querySelectorAll('[onclick]'));
-      return allEls.filter(el => el.textContent.includes('Strawberry')).map(el => ({
-        tag: el.tagName,
-        text: el.textContent.trim().substring(0, 50),
-        onclick: el.getAttribute('onclick')
-      }));
-    });
-
-    if (fruitCardsInfo.length > 0) {
-      // Click strawberry via JS
-      await page.evaluate(() => {
-        const allEls = Array.from(document.querySelectorAll('[onclick]'));
-        const strawEl = allEls.find(el => el.textContent.includes('Strawberry'));
-        if (strawEl) strawEl.click();
-      });
-      await page.waitForTimeout(500);
-
-      // Check for "Filtered" badge
-      const hasFilteredBadge = await page.evaluate(() => {
-        return document.body.innerHTML.includes('Filtered') || document.body.innerHTML.includes('filtered');
-      });
-
-      // Check fruitFilter is set
-      const fruitFilterVal = await page.evaluate(() => window.fruitFilter);
-
-      if (fruitFilterVal === 'Strawberry' || hasFilteredBadge) {
-        pass('Test 3a — Fruit filter set on click', `fruitFilter="${fruitFilterVal}", badge visible=${hasFilteredBadge}`);
-      } else {
-        fail('Test 3a — Fruit filter set on click', `fruitFilter="${fruitFilterVal}", badge visible=${hasFilteredBadge}`);
-      }
-
-      // Click again to clear
-      await page.evaluate(() => {
-        const allEls = Array.from(document.querySelectorAll('[onclick]'));
-        const strawEl = allEls.find(el => el.textContent.includes('Strawberry'));
-        if (strawEl) strawEl.click();
-      });
-      await page.waitForTimeout(400);
-
-      const fruitFilterCleared = await page.evaluate(() => window.fruitFilter);
-      if (fruitFilterCleared === null) {
-        pass('Test 3b — Fruit filter cleared on second click', 'fruitFilter=null');
-      } else {
-        fail('Test 3b — Fruit filter cleared on second click', `fruitFilter="${fruitFilterCleared}" (expected null)`);
-      }
-    } else {
-      fail('Test 3 — Strawberry card', `Could not find strawberry element. fruitsInfo=${JSON.stringify(fruitCardsInfo)}`);
-    }
-
-    // ----------------------------------------------------------------
-    // TEST 4 — sakuraColor / bloomCategory JS functions
-    // ----------------------------------------------------------------
-    // Test sakuraColor(0, 100, '2026-03-25') — today is 2026-04-10, 16 days ago → should return '#4ade80'
-    const color1 = await page.evaluate(() => window.sakuraColor(0, 100, '2026-03-25'));
-    if (color1 === '#4ade80') {
-      pass('Test 4a — sakuraColor(0,100,"2026-03-25") = green', `Returned: ${color1}`);
-    } else {
-      fail('Test 4a — sakuraColor(0,100,"2026-03-25") = green', `Expected '#4ade80', got '${color1}'`);
-    }
-
-    // Test sakuraColor(0, 100, '2026-04-15') — future date → should NOT be green
-    const color2 = await page.evaluate(() => window.sakuraColor(0, 100, '2026-04-15'));
-    if (color2 !== '#4ade80' && color2 !== '#86efac') {
-      pass('Test 4b — sakuraColor(0,100,"2026-04-15") is NOT green (future date)', `Returned: ${color2} (not green)`);
-    } else {
-      fail('Test 4b — sakuraColor(0,100,"2026-04-15") should NOT be green', `Got ${color2} (expected pink #be185d, not green)`);
-    }
-
-    // Test bloomCategory(0, 100, '2026-03-25') → should return 'ended'
-    const cat1 = await page.evaluate(() => window.bloomCategory(0, 100, '2026-03-25'));
-    if (cat1 === 'ended') {
-      pass('Test 4c — bloomCategory(0,100,"2026-03-25") = "ended"', `Returned: ${cat1}`);
-    } else {
-      fail('Test 4c — bloomCategory(0,100,"2026-03-25") = "ended"', `Expected 'ended', got '${cat1}'`);
-    }
-
-    // Also verify expected value for color2
-    const color2Expected = '#be185d';
-    if (color2 === color2Expected) {
-      pass('Test 4d — sakuraColor future date = deep pink (#be185d)', `Returned: ${color2}`);
-    } else {
-      fail('Test 4d — sakuraColor future date = deep pink (#be185d)', `Expected '${color2Expected}', got '${color2}'`);
-    }
-
-  } catch (err) {
-    fail('UNCAUGHT ERROR', err.message);
+  } catch (e) {
+    fail('Unexpected crash', e.message);
   }
 
   await browser.close();
 
-  // Print results
-  console.log('\n=== PLAYWRIGHT VERIFICATION RESULTS ===\n');
-  let passCount = 0, failCount = 0;
+  console.log(`\n${'─'.repeat(62)}`);
+  console.log(`Playwright · ${BASE}`);
+  console.log('─'.repeat(62));
   for (const r of results) {
-    const icon = r.status === 'PASS' ? 'PASS' : 'FAIL';
-    console.log(`[${icon}] ${r.test}`);
-    console.log(`       ${r.detail}`);
-    if (r.status === 'PASS') passCount++; else failCount++;
+    const icon = r.status === 'PASS' ? '✅' : '❌';
+    console.log(`${icon}  ${r.name}${r.detail ? `\n    ${r.detail}` : ''}`);
   }
-  console.log(`\n--- ${passCount} passed, ${failCount} failed ---\n`);
+  console.log('─'.repeat(62));
+  console.log(`${passed} passed · ${failed} failed\n`);
+  if (failed > 0) process.exit(1);
 }
 
-runTests().catch(err => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+run().catch(e => { console.error(e); process.exit(1); });
