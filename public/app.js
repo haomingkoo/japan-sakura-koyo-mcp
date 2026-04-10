@@ -3,25 +3,25 @@
 // Mirror any change here in app.css :root variables (--pink, --orange, etc.)
 const C = {
   // Sakura lifecycle (light → dark = early → peak; green = ended)
-  dormant:    C.dormant,
-  bud:        C.bud,
-  budSwell:   C.budSwell,
-  budOpen:    C.budOpen,
+  dormant:    '#d4d4d4',
+  bud:        '#fdba74',
+  budSwell:   '#fb923c',
+  budOpen:    '#f97316',
   starting:   '#f9a8d4',
-  blooming:   C.blooming,
-  bloom:      C.bloom,
-  peak:       C.peak,
-  falling:    C.falling,
-  ended:      C.ended,
+  blooming:   '#f472b6',
+  bloom:      '#ec4899',
+  peak:       '#be185d',
+  falling:    '#86efac',
+  ended:      '#4ade80',
   // Koyo (autumn leaves)
   koyoPeak:   '#ea580c',
-  koyoTurn:   C.budOpen,
-  koyoEarly:  C.bud,
+  koyoTurn:   '#f97316',
+  koyoEarly:  '#fdba74',
   // UI links & accents (match --pink / --orange CSS vars)
-  link:       C.bloom,
+  link:       '#ec4899',
   koyoLink:   '#ea580c',
   pinkLight:  '#fdf2f8',
-  pinkDark:   C.peak,
+  pinkDark:   '#be185d',
   orangeLink: '#ea580c',
 };
 
