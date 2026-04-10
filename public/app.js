@@ -644,13 +644,15 @@ function renderFruitMonth(m) {
         }
       }
 
-      // Icon: up to 2 emojis; slightly larger dot when multiple fruits
+      // Icon: show 2 emojis + "+N" badge if more than 2 in-season fruits
+      const n = inSeasonFruits.length;
       const emojis = inSeasonFruits.slice(0, 2).map(f => f.emoji).join('');
-      const sz = inSeasonFruits.length > 1 ? 30 : 24;
-      const fs = inSeasonFruits.length > 1 ? 11 : 13;
+      const extra = n > 2 ? `<span style="font-size:8px;font-weight:700;color:${C.greenDark};margin-left:1px">+${n-2}</span>` : '';
+      const sz = n > 1 ? 32 : 24;
+      const fs = n > 1 ? 11 : 13;
       const marker = L.marker([lat, lon], {
         icon: L.divIcon({
-          html: `<div style="background:white;border:2px solid ${C.green};border-radius:50%;width:${sz}px;height:${sz}px;display:flex;align-items:center;justify-content:center;font-size:${fs}px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emojis}</div>`,
+          html: `<div style="background:white;border:2px solid ${C.green};border-radius:50%;width:${sz}px;height:${sz}px;display:flex;align-items:center;justify-content:center;font-size:${fs}px;box-shadow:0 1px 4px rgba(0,0,0,0.2);gap:1px">${emojis}${extra}</div>`,
           className: '', iconSize: [sz, sz], iconAnchor: [sz/2, sz/2],
         })
       });
