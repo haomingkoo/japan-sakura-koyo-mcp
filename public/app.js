@@ -68,13 +68,41 @@ function initMap() {
   // Lazy-load weather when a spot popup opens
   // Weather cache: avoid re-fetching on every popup open (1-hour TTL)
   const weatherCache = new Map();
+  // GSI reverse geocoder cache: lat,lon → JMA class20s area code (permanent — cities don't move)
+  const jmaCityCache = new Map();
 
   mapInstance.on('popupopen', async (e) => {
-    const el = e.popup.getElement()?.querySelector('.popup-weather');
+    const popupEl = e.popup.getElement();
+    const el = popupEl?.querySelector('.popup-weather');
     if (!el) return;
     const lat = parseFloat(el.dataset.lat);
     const lon = parseFloat(el.dataset.lon);
     if (!lat || !lon) { el.innerHTML = ''; return; }
+
+    // ── Upgrade JMA link to exact city level (class20s) via GSI geocoder ──
+    const jmaLink = popupEl?.querySelector('.jma-city-link');
+    if (jmaLink) {
+      const geoKey = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+      const cachedCode = jmaCityCache.get(geoKey);
+      if (cachedCode) {
+        jmaLink.href = `https://www.jma.go.jp/bosai/forecast/#area_type=class20s&area_code=${cachedCode}`;
+        jmaLink.textContent = 'JMA city forecast →';
+      } else {
+        // GSI (Geospatial Info Authority of Japan) reverse geocoder — free, official
+        fetch(`https://mreversegeocoder.gsi.go.jp/reverse-geocoder/LonLatToAddress?lat=${lat.toFixed(6)}&lon=${lon.toFixed(6)}`)
+          .then(r => r.json())
+          .then(data => {
+            const muniCd = data?.results?.muniCd; // 5-digit municipality code e.g. "13101"
+            if (muniCd && muniCd.length === 5) {
+              const areaCode = muniCd + '00'; // JMA class20s = muniCd + "00"
+              jmaCityCache.set(geoKey, areaCode);
+              jmaLink.href = `https://www.jma.go.jp/bosai/forecast/#area_type=class20s&area_code=${areaCode}`;
+              jmaLink.textContent = 'JMA city forecast →';
+            }
+          })
+          .catch(() => {}); // silently keep prefecture link on failure
+      }
+    }
 
     // Serve from cache instantly if fresh (< 1 hour)
     const key = `${lat.toFixed(1)},${lon.toFixed(1)}`;
@@ -1780,7 +1808,7 @@ function spotPopupHtml(spot) {
     </div>
     <div style="margin-top:4px;display:flex;gap:8px;align-items:center">
       <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>
-      <a href="${jmaUrl}" target="_blank" style="font-size:10px;color:#94a3b8">JMA city forecast →</a>
+      <a href="${jmaUrl}" target="_blank" class="jma-city-link" data-lat="${spot.lat}" data-lon="${spot.lon}" style="font-size:10px;color:#94a3b8">JMA forecast →</a>
     </div>
   </div>`;
 }
