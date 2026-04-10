@@ -40,6 +40,10 @@ const STATIC_MCP = {
   farms:     loadStaticJSON("fruit-farms.json"),
 };
 
+// All tools are read-only (no side effects) and idempotent (same input = same output)
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
+const READONLY: ToolAnnotations = { readOnlyHint: true, idempotentHint: true };
+
 // ─── Shared tool & prompt registration ───────────────────────────────────────
 
 function registerAllTools(server: McpServer) {
@@ -136,6 +140,7 @@ Use the japan-seasons-mcp tools based on the travel month:
         "City or region to search (e.g. 'Tokyo', 'Kyoto', 'Hokkaido', 'Tohoku'). Omit to get all cities."
       ),
     },
+    READONLY,
     async ({ city }) => {
       try {
         const forecast = await getSakuraForecast();
@@ -167,6 +172,7 @@ Use the japan-seasons-mcp tools based on the travel month:
     {
       prefecture: z.string().describe("Prefecture name or code (e.g. 'Tokyo', 'Kyoto', '13')."),
     },
+    READONLY,
     async ({ prefecture }) => {
       try {
         const prefCode = findPrefCode(prefecture);
@@ -206,6 +212,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       start_date: z.string().describe("Travel start date (YYYY-MM-DD)"),
       end_date: z.string().describe("Travel end date (YYYY-MM-DD)"),
     },
+    READONLY,
     async ({ start_date, end_date }) => {
       try {
         const startDate = new Date(start_date);
@@ -233,6 +240,7 @@ Use the japan-seasons-mcp tools based on the travel month:
     "get_kawazu_cherry",
     "Get Kawazu cherry blossom (河津桜) forecast — the early-blooming deep pink variety in Izu Peninsula, Shizuoka. Blooms January-February, months before standard Somei-Yoshino. 9 spots with bloom percentages. Data from Japan Meteorological Corporation.",
     {},
+    READONLY,
     async () => {
       try {
         const result = await getKawazuForecast();
@@ -258,6 +266,7 @@ Use the japan-seasons-mcp tools based on the travel month:
     "get_koyo_forecast",
     "Get autumn leaves (koyo/紅葉) forecast for Japan. Per-city maple and ginkgo dates, forecast maps, and regional commentary. 50+ observation cities. For Oct-Dec trips. Follow up with get_koyo_spots for specific viewing spots. Data from Japan Meteorological Corporation.",
     {},
+    READONLY,
     async () => {
       try {
         const forecast = await getKoyoForecast();
@@ -296,6 +305,7 @@ Use the japan-seasons-mcp tools based on the travel month:
     {
       prefecture: z.string().describe("Prefecture name or code (e.g. 'Kyoto', 'Tokyo', '26')."),
     },
+    READONLY,
     async ({ prefecture }) => {
       try {
         const prefCode = findPrefCode(prefecture);
@@ -327,6 +337,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       start_date: z.string().describe("Travel start date (YYYY-MM-DD)"),
       end_date: z.string().describe("Travel end date (YYYY-MM-DD)"),
     },
+    READONLY,
     async ({ start_date, end_date }) => {
       try {
         const startDate = new Date(start_date);
@@ -379,6 +390,7 @@ Use the japan-seasons-mcp tools based on the travel month:
     {
       city: z.string().describe(`City name. Available: ${Object.keys(WEATHER_CITY_IDS).join(", ")}`),
     },
+    READONLY,
     async ({ city }) => {
       try {
         const forecast = await getWeatherForecast(city);
@@ -412,6 +424,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       month: z.number().int().min(1).max(12).optional()
         .describe("Filter to spots in season for this month (1-12)."),
     },
+    READONLY,
     async ({ type, prefecture, month }) => {
       try {
         const data = STATIC_MCP.flowers;
@@ -479,6 +492,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       month: z.number().int().min(1).max(12).optional()
         .describe("Month to check (1-12). Returns in-season and coming-soon fruits. Omit for full year calendar."),
     },
+    READONLY,
     async ({ month }) => {
       try {
         if (month) {
@@ -550,6 +564,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       prefecture: z.string().optional()
         .describe("Filter by prefecture, e.g. 'Tokyo', 'Kyoto', 'Osaka', 'Hokkaido'."),
     },
+    READONLY,
     async ({ month, type, prefecture }) => {
       try {
         const data = STATIC_MCP.festivals;
@@ -613,6 +628,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       limit: z.number().int().min(1).max(100).optional()
         .describe("Max number of farms to return (default 30, max 100)."),
     },
+    READONLY,
     async ({ month, fruit, region, limit = 30 }) => {
       try {
         const data = STATIC_MCP.farms;
@@ -724,7 +740,9 @@ setInterval(() => {
 const isHttpMode = process.argv.includes("--http") || !!process.env.PORT;
 
 // Register tools on the module-level server (for stdio mode)
-const server = new McpServer({ name: "japan-seasons-mcp", version: "0.3.4" });
+const server = new McpServer({ name: "japan-seasons-mcp", version: "0.3.4" }, {
+    instructions: "Japan in Seasons MCP server. Provides live cherry blossom (sakura) and autumn leaves (koyo) forecasts from Japan Meteorological Corporation, plus curated data for flowers, festivals, and fruit picking farms. Use get_sakura_best_dates or get_koyo_best_dates first to match travel dates to bloom cities, then get_sakura_spots or get_koyo_spots to find specific viewing locations. All tools are read-only and require no authentication.",
+  });
 registerAllTools(server);
 
 async function main() {
@@ -887,7 +905,9 @@ async function startHttpServer() {
         };
       }
 
-      const sessionServer = new McpServer({ name: "japan-seasons-mcp", version: "0.3.4" });
+      const sessionServer = new McpServer({ name: "japan-seasons-mcp", version: "0.3.4" }, {
+    instructions: "Japan in Seasons MCP server. Provides live cherry blossom (sakura) and autumn leaves (koyo) forecasts from Japan Meteorological Corporation, plus curated data for flowers, festivals, and fruit picking farms. Use get_sakura_best_dates or get_koyo_best_dates first to match travel dates to bloom cities, then get_sakura_spots or get_koyo_spots to find specific viewing locations. All tools are read-only and require no authentication.",
+  });
       registerAllTools(sessionServer);
       await sessionServer.connect(transport);
 
