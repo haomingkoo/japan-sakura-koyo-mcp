@@ -1,10 +1,11 @@
 {
-  "name": "japan-sakura-koyo-mcp",
-  "version": "0.2.0",
-  "description": "Cherry blossom & autumn leaves forecast for Japan — 1,700+ spots with real-time bloom data, weather, and trip planning. MCP server powered by Japan Meteorological Corporation data.",
+  "name": "japan-seasons-mcp",
+  "version": "0.3.3",
+  "description": "Year-round Japan seasonal travel — cherry blossom, autumn leaves, fruit picking, flowers & more. 1,700+ spots with live data. MCP server powered by Japan Meteorological Corporation.",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
+    "japan-seasons-mcp": "dist/index.js",
     "japan-sakura-koyo-mcp": "dist/index.js"
   },
   "scripts": {
@@ -17,11 +18,14 @@
   },
   "keywords": [
     "mcp",
+    "japan",
+    "japan-travel",
+    "seasons",
+    "seasonal",
     "sakura",
     "cherry-blossom",
     "koyo",
     "autumn-leaves",
-    "japan",
     "forecast",
     "travel",
     "jma",
@@ -29,8 +33,11 @@
     "hanami",
     "momiji",
     "kawazu",
+    "wisteria",
+    "hydrangea",
+    "fruit-picking",
+    "flowers",
     "weather",
-    "japan-travel",
     "cherry-blossom-forecast",
     "autumn-leaves-forecast"
   ],

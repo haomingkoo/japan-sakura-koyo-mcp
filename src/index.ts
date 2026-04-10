@@ -4,8 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { createServer } from "http";
-import { readFileSync } from "fs";
-import { join, dirname } from "path";
+import { readFileSync, existsSync } from "fs";
+import { join, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import { logger } from "./lib/logger.js";
 import { handleApiRequest } from "./api.js";
@@ -28,33 +28,82 @@ import { WEATHER_CITY_IDS } from "./lib/areas.js";
 
 function registerAllTools(server: McpServer) {
 
-  // ── Prompt: plan_sakura_trip ──
+  // ── Prompt: plan_japan_trip ──
 
   server.prompt(
+    "plan_japan_trip",
+    "Guide for planning a seasonal trip to Japan — cherry blossom, autumn leaves, fruit picking, wisteria, hydrangea, and more. Use this when someone wants to visit Japan and see seasonal experiences.",
+    { travel_dates: z.string().optional().describe("Travel date range, e.g. 'April 5-12' or 'June 20-July 3'") },
+    async ({ travel_dates }) => ({
+      messages: [{
+        role: "user",
+        content: {
+          type: "text",
+          text: `Help me plan a seasonal trip to Japan${travel_dates ? ` for ${travel_dates}` : ""}.
+
+Use the japan-seasons-mcp tools based on the travel month:
+
+## By season
+
+**Jan-Feb** — Kawazu cherry (deep pink, Izu Peninsula):
+- get_kawazu_cherry
+
+**Late Mar – May** — Cherry blossom (sakura):
+- get_sakura_forecast → big picture, 48 cities
+- get_sakura_best_dates → match travel dates to bloom cities
+- get_sakura_spots → 1,012 specific parks/temples with bloom % and GPS
+- get_flowers (type=wisteria) → wisteria season starts late Apr
+
+**Apr-May** — Wisteria (fuji):
+- get_flowers with type=wisteria → 13 curated spots (Ashikaga, Kawachi, Kameido Tenjin, Byodoin, Kasuga Taisha...)
+
+**Jun-Jul** — Hydrangea (ajisai):
+- get_flowers with type=hydrangea → 15 curated spots (Kamakura temples, Kyoto temples, Yatadera...)
+
+**Jul-Aug** — Fireworks & summer matsuri:
+- get_festivals with type=fireworks → Sumida River, Nagaoka, Omagari, PL Osaka, Miyajima... (official URLs included)
+- get_festivals with type=matsuri → Gion Matsuri, Tenjin Matsuri, Nebuta, Awa Odori...
+
+**May, Sep-Nov** — Traditional matsuri:
+- get_festivals → Sanja, Aoi, Hakata Dontaku (May), Kishiwada Danjiri (Sep), Jidai, Kurama Fire, Takayama (Oct-Nov)
+
+**Jan-Feb** — Winter events:
+- get_festivals with type=winter → Sapporo Snow Festival, Yokote Kamakura, Shirakawa-go illumination...
+
+**Year-round** — Fruit picking:
+- get_fruit_seasons → which fruits are in season for the travel month
+- get_fruit_farms → 350+ farms with GPS, filterable by fruit type and region
+
+**Oct-Dec** — Autumn leaves (koyo):
+- get_koyo_forecast → maple & ginkgo timing, 50+ cities
+- get_koyo_spots → 687 viewing spots with peak windows
+
+## Bloom scale (sakura, official JMA)
+- Bloom rate: 0-59% bud → 60-84% swelling → 85-99% opening → 100% first bloom
+- Full rate: 0-19% just opened → 20-69% partial → 70-89% 70% → 90-100% mankai (満開)
+
+## Key facts
+- Somei-Yoshino (standard cherry) blooms Mar-May, moving north Okinawa → Hokkaido
+- Kawazu-zakura (deep pink) blooms Jan-Feb in Izu Peninsula
+- Sakura lasts 7-10 days; rain accelerates petal fall — check get_weather_forecast
+- Wisteria is admission-required at top spots (Ashikaga, Kawachi) — book ahead
+- Hydrangea peaks June in Kamakura; visit weekdays or early morning to avoid crowds`,
+        },
+      }],
+    })
+  );
+
+  // Keep old prompt name as alias for backwards compatibility
+  server.prompt(
     "plan_sakura_trip",
-    "Guide for planning a cherry blossom viewing trip to Japan. Use this when someone wants to see sakura in Japan.",
+    "Guide for planning a cherry blossom viewing trip to Japan. Use plan_japan_trip for full seasonal coverage.",
     { travel_dates: z.string().optional().describe("Travel date range, e.g. 'April 5-12'") },
     async ({ travel_dates }) => ({
       messages: [{
         role: "user",
         content: {
           type: "text",
-          text: `Help me plan a cherry blossom trip to Japan${travel_dates ? ` for ${travel_dates}` : ""}.
-
-Use the japan-sakura-koyo-mcp tools in this order:
-
-1. **get_sakura_forecast** — Big picture: 48 cities with forecast vs actual bloom dates and historical averages.
-2. **get_sakura_best_dates** — Match your travel dates to cities with peak bloom.
-3. **get_sakura_spots** — Drill into specific parks/temples (1,012 spots) with bloom % and GPS.
-4. **get_kawazu_cherry** — For Jan-Feb trips: early-blooming deep pink Kawazu cherry in Izu Peninsula.
-5. **get_weather_forecast** — Check rain (rain = petals fall faster).
-6. **get_koyo_forecast** / **get_koyo_spots** — For autumn trips (Oct-Dec): maple & ginkgo at 687 spots.
-
-Bloom scale (official from Japan Meteorological Corporation):
-- Bloom rate 0-59% bud → 60-84% swelling → 85-99% opening → 100% first bloom
-- Full rate 0-19% just opened → 20-39% 30% → 40-69% 50% → 70-89% 70% → 90-100% full bloom (mankai)
-
-Key: Somei-Yoshino (standard cherry) blooms Mar-May. Kawazu-zakura (deep pink) blooms Jan-Feb. Sakura front moves north from Okinawa to Hokkaido. Blossoms last only 7-10 days.`,
+          text: `Help me plan a cherry blossom trip to Japan${travel_dates ? ` for ${travel_dates}` : ""}. Use get_sakura_forecast, get_sakura_best_dates, get_sakura_spots, and get_kawazu_cherry. Also see plan_japan_trip for full year-round seasonal coverage.`,
         },
       }],
     })
@@ -279,6 +328,293 @@ Key: Somei-Yoshino (standard cherry) blooms Mar-May. Kawazu-zakura (deep pink) b
       }
     }
   );
+
+  // ── Tool: get_flowers ──
+
+  server.tool(
+    "get_flowers",
+    "Get curated seasonal flower spots in Japan — wisteria (fuji, Apr-May) and hydrangea (ajisai, Jun-Jul). Each spot includes official website URL, peak dates, GPS coordinates, and notes. 28 hand-picked spots at Japan's most famous locations (Ashikaga Flower Park, Kawachi Wisteria Garden, Meigetsu-in, Hasedera, Mimurotoji, etc.).",
+    {
+      type: z.enum(["all", "wisteria", "hydrangea"]).optional()
+        .describe("Filter by flower type. 'wisteria' = Apr-May season. 'hydrangea' = Jun-Jul season. Omit for all."),
+      prefecture: z.string().optional()
+        .describe("Filter by prefecture, e.g. 'Kanagawa', 'Kyoto', 'Tokyo', 'Fukuoka'."),
+      month: z.number().int().min(1).max(12).optional()
+        .describe("Filter to spots in season for this month (1-12). April/May for wisteria, June/July for hydrangea."),
+    },
+    async ({ type, prefecture, month }) => {
+      try {
+        const flowersPath = resolve(process.cwd(), "public/flowers.json");
+        if (!existsSync(flowersPath)) {
+          return { content: [{ type: "text", text: "Flowers data not available on this instance." }], isError: true };
+        }
+        const raw = readFileSync(flowersPath, "utf-8");
+        const data = JSON.parse(raw);
+        let spots: any[] = data.spots || [];
+
+        const SEASON_MONTHS: Record<string, number[]> = { wisteria: [4, 5], hydrangea: [6, 7] };
+
+        if (type && type !== "all") spots = spots.filter((s: any) => s.type === type);
+        if (prefecture) spots = spots.filter((s: any) => s.prefecture?.toLowerCase().includes(prefecture.toLowerCase()));
+        if (month) {
+          spots = spots.filter((s: any) => {
+            const months = SEASON_MONTHS[s.type] || [];
+            return months.includes(month);
+          });
+        }
+
+        if (spots.length === 0) {
+          return { content: [{ type: "text", text: `No flower spots found for the given filters. Wisteria is Apr-May; hydrangea is Jun-Jul.` }] };
+        }
+
+        const typeLabel = type && type !== "all" ? type : "all types";
+        let output = `# Japan Flower Spots — ${typeLabel}\n`;
+        output += `Source: seasons.kooexperience.com | Updated: ${data.updated}\n`;
+        output += `Total: ${spots.length} spots\n\n`;
+        output += `## Season Overview\n`;
+        output += `- 💜 **Wisteria (藤)** — April–May. Famous for tunnel/dome structures, century-old vines.\n`;
+        output += `- 💙 **Hydrangea (紫陽花)** — June–July. Kamakura is the top destination with 10+ spots.\n\n`;
+
+        const byType: Record<string, any[]> = {};
+        for (const s of spots) {
+          if (!byType[s.type]) byType[s.type] = [];
+          byType[s.type].push(s);
+        }
+
+        for (const [flowerType, flowerSpots] of Object.entries(byType)) {
+          const emoji = flowerType === "wisteria" ? "💜" : "💙";
+          const season = flowerType === "wisteria" ? "April–May" : "June–July";
+          output += `## ${emoji} ${flowerType.charAt(0).toUpperCase() + flowerType.slice(1)} — ${season}\n\n`;
+          for (const s of flowerSpots) {
+            output += `### ${s.name}${s.nameJa ? ` (${s.nameJa})` : ""}\n`;
+            output += `- **Prefecture:** ${s.prefecture} (${s.region})\n`;
+            if (s.peakStart && s.peakEnd) output += `- **Peak:** ${s.peakStart} → ${s.peakEnd}\n`;
+            if (s.note) output += `- **Note:** ${s.note}\n`;
+            output += `- **Official site:** ${s.url}\n`;
+            output += `- **GPS:** ${s.lat}, ${s.lon}\n\n`;
+          }
+        }
+
+        return { content: [{ type: "text", text: output }] };
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+      }
+    }
+  );
+
+  // ── Tool: get_fruit_seasons ──
+
+  server.tool(
+    "get_fruit_seasons",
+    "Get the Japan fruit picking season calendar — which fruits are available when, peak months, best regions, and farm count. Use this to plan fruit picking experiences by travel month. Covers 14 fruits year-round: strawberry, cherry, peach, grape, apple, mikan, and more.",
+    {
+      month: z.number().int().min(1).max(12).optional()
+        .describe("Month to check (1-12). Returns in-season and coming-soon fruits. Omit for full year calendar."),
+    },
+    async ({ month }) => {
+      const FRUITS = [
+        { name: "Strawberry", ja: "いちご", emoji: "🍓", months: [12,1,2,3,4,5], peak: [2,3,4], regions: ["Tochigi","Nagano","Chiba","Ibaraki","Hokkaido"], note: "Kyushu (Fukuoka) season ends ~April; May is Kanto & northern only" },
+        { name: "Melon", ja: "メロン", emoji: "🍈", months: [5,6,7,8], peak: [6,7], regions: ["Hokkaido (Yubari)","Ibaraki","Kumamoto"], note: "Yubari King is Japan's most prized melon" },
+        { name: "Cherry", ja: "さくらんぼ", emoji: "🍒", months: [6,7], peak: [6,7], regions: ["Yamagata","Hokkaido","Nagano","Aomori"], note: "Very short season — book farms early" },
+        { name: "Watermelon", ja: "すいか", emoji: "🍉", months: [6,7,8], peak: [7], regions: ["Kumamoto","Yamagata","Chiba"] },
+        { name: "Peach", ja: "もも", emoji: "🍑", months: [7,8,9], peak: [7,8], regions: ["Yamanashi","Fukushima","Nagano","Okayama"] },
+        { name: "Blueberry", ja: "ブルーベリー", emoji: "🫐", months: [7,8,9], peak: [7,8], regions: ["Nagano","Chiba","Tokyo (suburbs)","Hokkaido"] },
+        { name: "Grape", ja: "ぶどう", emoji: "🍇", months: [8,9,10,11], peak: [9,10], regions: ["Yamanashi","Nagano","Yamagata","Okayama"], note: "50+ varieties; shine muscat is very popular" },
+        { name: "Pear", ja: "なし", emoji: "🍐", months: [8,9,10], peak: [8,9], regions: ["Tottori","Chiba","Ibaraki","Nagano"], note: "Japanese pears are round and crisp" },
+        { name: "Fig", ja: "いちじく", emoji: "🍈", months: [8,9,10], peak: [9], regions: ["Aichi","Osaka","Hyogo"] },
+        { name: "Apple", ja: "りんご", emoji: "🍎", months: [9,10,11], peak: [10,11], regions: ["Aomori","Nagano","Iwate","Yamagata"], note: "Aomori produces ~60% of Japan's apples" },
+        { name: "Persimmon", ja: "柿", emoji: "🟠", months: [10,11,12], peak: [10,11], regions: ["Nara","Wakayama","Gifu","Fukuoka"] },
+        { name: "Kiwi", ja: "キウイ", emoji: "🥝", months: [10,11,12], peak: [11], regions: ["Ehime","Kanagawa","Fukuoka"] },
+        { name: "Chestnut", ja: "栗", emoji: "🌰", months: [9,10,11], peak: [9,10], regions: ["Ibaraki","Kumamoto","Ehime","Aichi"], note: "Japan's most prized variety is Tanba (Kyoto/Hyogo)" },
+        { name: "Mikan", ja: "みかん", emoji: "🍊", months: [11,12,1], peak: [11,12], regions: ["Wakayama","Ehime","Shizuoka","Nagasaki"], note: "Japan's most popular winter citrus" },
+      ];
+
+      const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+      try {
+        if (month) {
+          const inSeason = FRUITS.filter(f => f.months.includes(month));
+          const nextM = month === 12 ? 1 : month + 1;
+          const comingSoon = FRUITS.filter(f => !f.months.includes(month) && f.months.includes(nextM));
+
+          let output = `# Japan Fruit Picking — ${MO[month-1]}\n\n`;
+
+          if (inSeason.length) {
+            output += `## In Season (${inSeason.length} fruits)\n\n`;
+            for (const f of inSeason) {
+              const isPeak = f.peak.includes(month);
+              output += `### ${f.emoji} ${f.name} (${f.ja})${isPeak ? " ⭐ PEAK" : ""}\n`;
+              output += `- **Season:** ${f.months.map(m => MO[m-1]).join(", ")}\n`;
+              output += `- **Peak months:** ${f.peak.map(m => MO[m-1]).join(", ")}\n`;
+              output += `- **Best regions:** ${f.regions.join(", ")}\n`;
+              if (f.note) output += `- **Note:** ${f.note}\n`;
+              output += "\n";
+            }
+          } else {
+            output += `No fruits in peak season in ${MO[month-1]}.\n\n`;
+          }
+
+          if (comingSoon.length) {
+            output += `## Coming Up in ${MO[nextM-1]}\n`;
+            output += comingSoon.map(f => `- ${f.emoji} ${f.name}`).join("\n") + "\n\n";
+          }
+
+          output += `Use get_fruit_farms to find specific farms with GPS coordinates.`;
+          return { content: [{ type: "text", text: output }] };
+        }
+
+        // Full year calendar
+        let output = `# Japan Fruit Picking — Full Year Calendar\n\n`;
+        output += `| Month | In Season | Peak |\n|---|---|---|\n`;
+        for (let m = 1; m <= 12; m++) {
+          const inSeason = FRUITS.filter(f => f.months.includes(m));
+          const peak = FRUITS.filter(f => f.peak.includes(m));
+          output += `| ${MO[m-1]} | ${inSeason.map(f => f.emoji + f.name).join(", ") || "—"} | ${peak.map(f => f.name).join(", ") || "—"} |\n`;
+        }
+        output += `\n## All Fruits\n\n`;
+        for (const f of FRUITS) {
+          output += `### ${f.emoji} ${f.name} (${f.ja})\n`;
+          output += `- **Season:** ${f.months.map(m => MO[m-1]).join(", ")}\n`;
+          output += `- **Peak:** ${f.peak.map(m => MO[m-1]).join(", ")}\n`;
+          output += `- **Best regions:** ${f.regions.join(", ")}\n`;
+          if (f.note) output += `- **Note:** ${f.note}\n`;
+          output += "\n";
+        }
+        output += `Use get_fruit_farms to find specific farms with GPS coordinates.`;
+        return { content: [{ type: "text", text: output }] };
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+      }
+    }
+  );
+
+  // ── Tool: get_festivals ──
+
+  server.tool(
+    "get_festivals",
+    "Get major recurring Japanese festivals and events by month. Covers 52 curated events: fireworks (hanabi), matsuri (traditional festivals), and winter events. Each entry includes official URL, GPS coordinates, typical dates, and attendance figures. Great for planning around major events and booking accommodation early.",
+    {
+      month: z.number().int().min(1).max(12).optional()
+        .describe("Filter to festivals occurring in this month (1-12). July/August = fireworks season; October/November = autumn matsuri; January/February = winter events."),
+      type: z.enum(["all", "fireworks", "matsuri", "winter"]).optional()
+        .describe("Filter by event type: 'fireworks' (hanabi), 'matsuri' (traditional festivals), 'winter' (snow/illumination events). Omit for all types."),
+      prefecture: z.string().optional()
+        .describe("Filter by prefecture, e.g. 'Tokyo', 'Kyoto', 'Osaka', 'Hokkaido'."),
+    },
+    async ({ month, type, prefecture }) => {
+      try {
+        const festivalsPath = resolve(process.cwd(), "public/festivals.json");
+        if (!existsSync(festivalsPath)) {
+          return { content: [{ type: "text", text: "Festivals data not available on this instance." }], isError: true };
+        }
+        const raw = readFileSync(festivalsPath, "utf-8");
+        const data = JSON.parse(raw);
+        let spots: any[] = data.spots || [];
+
+        if (type && type !== "all") spots = spots.filter((s: any) => s.type === type);
+        if (prefecture) spots = spots.filter((s: any) => s.prefecture?.toLowerCase().includes(prefecture.toLowerCase()));
+        if (month) spots = spots.filter((s: any) => s.months?.includes(month));
+
+        if (spots.length === 0) {
+          return { content: [{ type: "text", text: `No festivals found for the given filters. Major seasons: fireworks Jul-Aug, autumn matsuri Sep-Nov, winter events Jan-Feb.` }] };
+        }
+
+        const MO = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        const TYPE_EMOJI: Record<string, string> = { fireworks: "🎆", matsuri: "🏮", winter: "❄️" };
+
+        let output = `# Japan Festivals${month ? ` — ${MO[month-1]}` : ""}${type && type !== "all" ? ` — ${type}` : ""}\n`;
+        output += `Source: seasons.kooexperience.com | ${spots.length} events\n\n`;
+        output += `## Tips\n- Book accommodation months ahead for major festivals (Gion Matsuri, Nebuta, Sumida Fireworks)\n`;
+        output += `- Fireworks season peaks July–August; winter events peak January–February\n\n`;
+
+        const byType: Record<string, any[]> = {};
+        for (const s of spots) {
+          if (!byType[s.type]) byType[s.type] = [];
+          byType[s.type].push(s);
+        }
+
+        for (const [fType, fSpots] of Object.entries(byType)) {
+          output += `## ${TYPE_EMOJI[fType] || ""} ${fType.charAt(0).toUpperCase() + fType.slice(1)} (${fSpots.length})\n\n`;
+          for (const s of fSpots) {
+            output += `### ${s.name}${s.nameJa ? ` (${s.nameJa})` : ""}\n`;
+            output += `- **When:** ${s.months.map((m: number) => MO[m-1]).join(", ")} — ${s.typicalDate}\n`;
+            output += `- **Location:** ${s.prefecture} (${s.region})\n`;
+            if (s.attendance) output += `- **Attendance:** ~${s.attendance.toLocaleString()} visitors\n`;
+            if (s.note) output += `- **Note:** ${s.note}\n`;
+            output += `- **Official site:** ${s.url}\n`;
+            output += `- **GPS:** ${s.lat}, ${s.lon}\n\n`;
+          }
+        }
+
+        return { content: [{ type: "text", text: output }] };
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+      }
+    }
+  );
+
+  // ── Tool: get_fruit_farms ──
+
+  server.tool(
+    "get_fruit_farms",
+    "Get fruit picking farms in Japan with GPS coordinates and booking links. 350+ farms scraped from Jalan and Navitime. Filter by fruit type or region. Use get_fruit_seasons first to find what's in season for your travel month.",
+    {
+      fruit: z.string().optional()
+        .describe("Fruit to filter by, e.g. 'Strawberry', 'Apple', 'Grape', 'Peach', 'Cherry', 'Mikan'. Case-sensitive."),
+      region: z.string().optional()
+        .describe("Prefecture or city to filter by (partial match), e.g. 'Yamanashi', 'Nagano', 'Aomori'."),
+      limit: z.number().int().min(1).max(100).optional()
+        .describe("Max number of farms to return (default 30, max 100). Use with fruit/region filters for best results."),
+    },
+    async ({ fruit, region, limit = 30 }) => {
+      try {
+        const farmsPath = resolve(process.cwd(), "public/fruit-farms.json");
+        if (!existsSync(farmsPath)) {
+          return { content: [{ type: "text", text: "Farm data not available on this instance. The hosted version at seasons.kooexperience.com has 350+ farms." }], isError: true };
+        }
+        const raw = readFileSync(farmsPath, "utf-8");
+        const data = JSON.parse(raw);
+        let farms: any[] = data.spots || [];
+
+        if (fruit) farms = farms.filter((f: any) => f.fruits?.includes(fruit));
+        if (region) farms = farms.filter((f: any) =>
+          f.address?.toLowerCase().includes(region.toLowerCase()) ||
+          f.name?.toLowerCase().includes(region.toLowerCase())
+        );
+
+        // Prioritise farms with coordinates
+        farms.sort((a: any, b: any) => (b.lat ? 1 : 0) - (a.lat ? 1 : 0));
+
+        const withCoords = farms.filter((f: any) => f.lat).length;
+        const shown = farms.slice(0, limit);
+
+        let output = `# Japan Fruit Picking Farms\n`;
+        output += `Database: ${data.total} total farms | Updated: ${data.scraped_at ? new Date(data.scraped_at).toDateString() : "unknown"}\n`;
+        output += `Filters: fruit=${fruit || "any"}, region=${region || "any"} → ${farms.length} matches (${withCoords} with GPS)\n\n`;
+
+        if (shown.length === 0) {
+          return { content: [{ type: "text", text: `No farms found. Try get_fruit_seasons to see what's in season, then filter by a specific fruit.` }] };
+        }
+
+        for (const f of shown) {
+          output += `### ${f.name}\n`;
+          if (f.address) output += `- **Address:** ${f.address}\n`;
+          if (f.fruits?.length) output += `- **Fruits:** ${f.fruits.join(", ")}\n`;
+          if (f.lat && f.lon) output += `- **GPS:** ${f.lat}, ${f.lon}\n`;
+          if (f.url) output += `- **Link:** ${f.url}\n`;
+          output += "\n";
+        }
+
+        if (farms.length > limit) {
+          output += `_Showing ${limit} of ${farms.length} farms. Use the fruit/region filters or visit seasons.kooexperience.com for the full interactive map._`;
+        }
+
+        return { content: [{ type: "text", text: output }] };
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+      }
+    }
+  );
 }
 
 // ─── Formatting helper ───────────────────────────────────────────────────────
@@ -337,14 +673,14 @@ setInterval(() => {
 const isHttpMode = process.argv.includes("--http") || !!process.env.PORT;
 
 // Register tools on the module-level server (for stdio mode)
-const server = new McpServer({ name: "japan-sakura-koyo-mcp", version: "0.1.0" });
+const server = new McpServer({ name: "japan-seasons-mcp", version: "0.1.0" });
 registerAllTools(server);
 
 async function main() {
   if (isHttpMode) {
     await startHttpServer();
   } else {
-    logger.info("Starting japan-sakura-koyo-mcp (stdio)");
+    logger.info("Starting japan-seasons-mcp (stdio)");
     const transport = new StdioServerTransport();
     await server.connect(transport);
   }
@@ -425,7 +761,7 @@ async function startHttpServer() {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({
         status: "ok",
-        server: "japan-sakura-koyo-mcp",
+        server: "japan-seasons-mcp",
         version: "0.1.0",
         activeSessions: transports.size,
         ...stats.toJSON(),
@@ -495,7 +831,7 @@ async function startHttpServer() {
         };
       }
 
-      const sessionServer = new McpServer({ name: "japan-sakura-koyo-mcp", version: "0.1.0" });
+      const sessionServer = new McpServer({ name: "japan-seasons-mcp", version: "0.1.0" });
       registerAllTools(sessionServer);
       await sessionServer.connect(transport);
 
@@ -525,7 +861,7 @@ async function startHttpServer() {
         res.end(html);
       } catch {
         res.writeHead(200, { "Content-Type": "text/html" });
-        res.end(`<!DOCTYPE html><html><body><h1>japan-sakura-koyo-mcp</h1>
+        res.end(`<!DOCTYPE html><html><body><h1>japan-seasons-mcp</h1>
 <p>MCP endpoint: <code>https://${req.headers.host}/mcp</code></p></body></html>`);
       }
       return;
@@ -535,7 +871,7 @@ async function startHttpServer() {
   });
 
   httpServer.listen(port, () => {
-    logger.info(`japan-sakura-koyo-mcp HTTP server on port ${port}`);
+    logger.info(`japan-seasons-mcp HTTP server on port ${port}`);
     logger.info(`MCP endpoint: http://localhost:${port}/mcp`);
     logger.info(`Rate limit: ${RATE_LIMIT_MAX} req/min per IP, max ${MAX_SESSIONS} sessions`);
   });

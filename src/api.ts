@@ -123,6 +123,32 @@ export async function handleApiRequest(
       return true;
     }
 
+    // GET /api/flowers — serve curated seasonal flower spots (wisteria, hydrangea, etc.)
+    if (pathname === "/api/flowers") {
+      try {
+        const flowersPath = resolve(process.cwd(), "public/flowers.json");
+        const raw = readFileSync(flowersPath, "utf-8");
+        const data = JSON.parse(raw);
+        json(res, data);
+      } catch {
+        json(res, { spots: [], total: 0, error: "Flowers data not available." });
+      }
+      return true;
+    }
+
+    // GET /api/festivals — serve curated recurring Japanese festivals
+    if (pathname === "/api/festivals") {
+      try {
+        const festivalsPath = resolve(process.cwd(), "public/festivals.json");
+        const raw = readFileSync(festivalsPath, "utf-8");
+        const data = JSON.parse(raw);
+        json(res, data);
+      } catch {
+        json(res, { spots: [], total: 0, error: "Festivals data not available." });
+      }
+      return true;
+    }
+
     // GET /api/weather?city=Tokyo
     if (pathname === "/api/weather") {
       const city = params.get("city");
