@@ -1,3 +1,30 @@
+// ── Colour palette — single source of truth ──
+// All map dots, legend swatches, badges, and inline styles read from here.
+// Mirror any change here in app.css :root variables (--pink, --orange, etc.)
+const C = {
+  // Sakura lifecycle (light → dark = early → peak; green = ended)
+  dormant:    C.dormant,
+  bud:        C.bud,
+  budSwell:   C.budSwell,
+  budOpen:    C.budOpen,
+  starting:   '#f9a8d4',
+  blooming:   C.blooming,
+  bloom:      C.bloom,
+  peak:       C.peak,
+  falling:    C.falling,
+  ended:      C.ended,
+  // Koyo (autumn leaves)
+  koyoPeak:   '#ea580c',
+  koyoTurn:   C.budOpen,
+  koyoEarly:  C.bud,
+  // UI links & accents (match --pink / --orange CSS vars)
+  link:       C.bloom,
+  koyoLink:   '#ea580c',
+  pinkLight:  '#fdf2f8',
+  pinkDark:   C.peak,
+  orangeLink: '#ea580c',
+};
+
 // ── State ──
 let mode = 'sakura';
 let sakuraData = null;
@@ -177,17 +204,17 @@ function fmtDates(bloomForecast, bloomRate, fullBloomForecast, fullRate) {
 function sakuraColor(bloomRate, fullRate, fullBloomForecast) {
   if (fullRate >= 100) {
     const daysSinceFull = fullBloomForecast ? Math.max(0, daysSince(fullBloomForecast)) : 0;
-    if (daysSinceFull > 10) return '#4ade80';  // green — ended, leaves out
-    if (daysSinceFull > 6) return '#86efac';   // light green — petals falling
-    return '#be185d';                           // deep pink — still at peak
+    if (daysSinceFull > 10) return C.ended;
+    if (daysSinceFull > 6)  return C.falling;
+    return C.peak;
   }
-  if (fullRate >= 70) return '#ec4899';
-  if (fullRate >= 20) return '#f472b6';
-  if (fullRate > 0) return '#f9a8d4';
-  if (bloomRate >= 85) return '#f97316';
-  if (bloomRate >= 60) return '#fb923c';
-  if (bloomRate > 0) return '#fdba74';
-  return '#d4d4d4';
+  if (fullRate >= 70) return C.bloom;
+  if (fullRate >= 20) return C.blooming;
+  if (fullRate > 0)   return C.starting;
+  if (bloomRate >= 85) return C.budOpen;
+  if (bloomRate >= 60) return C.budSwell;
+  if (bloomRate > 0)   return C.bud;
+  return C.dormant;
 }
 
 // Spot status text also needs the date check
@@ -311,12 +338,12 @@ function bloomBar(bloomRate, fullRate, fullBloomForecast) {
 
 // Map city status text to dot color/size for the overview map
 function statusToColor(status) {
-  if (status.includes('Full bloom') || status.includes('best')) return '#be185d';
-  if (status.includes('Falling') || status.includes('scattering')) return '#f9a8d4';
-  if (status.includes('Blooming') || status.includes('Approaching')) return '#ec4899';
-  if (status.includes('Coming') || status.includes('soon')) return '#f97316';
-  if (status.includes('Ended')) return '#4ade80';  // green — leaves out
-  return '#d4d4d4';
+  if (status.includes('Full bloom') || status.includes('best')) return C.peak;
+  if (status.includes('Falling') || status.includes('scattering')) return C.starting;
+  if (status.includes('Blooming') || status.includes('Approaching')) return C.bloom;
+  if (status.includes('Coming') || status.includes('soon')) return C.budOpen;
+  if (status.includes('Ended')) return C.ended;
+  return C.dormant;
 }
 function statusToRadius(status) {
   if (status.includes('Full bloom') || status.includes('best')) return 10;
@@ -384,7 +411,7 @@ const FRUITS = [
     regions:['Yamagata','Hokkaido','Nagano','Aomori'], note:'Very short season — book farms early' },
   { name:'Watermelon', ja:'すいか', emoji:'🍉', months:[6,7,8], peak:[7], color:'#16a34a',
     regions:['Kumamoto','Yamagata','Chiba'] },
-  { name:'Peach', ja:'もも', emoji:'🍑', months:[7,8,9], peak:[7,8], color:'#f97316',
+  { name:'Peach', ja:'もも', emoji:'🍑', months:[7,8,9], peak:[7,8], color:C.budOpen,
     regions:['Yamanashi','Fukushima','Nagano','Okayama'] },
   { name:'Blueberry', ja:'ブルーベリー', emoji:'🫐', months:[7,8,9], peak:[7,8], color:'#6d28d9',
     regions:['Nagano','Chiba','Tokyo (suburbs)','Hokkaido'] },
@@ -402,7 +429,7 @@ const FRUITS = [
     regions:['Ehime','Kanagawa','Fukuoka'] },
   { name:'Chestnut', ja:'栗', emoji:'🌰', months:[9,10,11], peak:[9,10], color:'#92400e',
     regions:['Ibaraki','Kumamoto','Ehime','Aichi'], note:'Japan\'s most prized variety is Tanba (Kyoto/Hyogo)' },
-  { name:'Mikan', ja:'みかん', emoji:'🍊', months:[11,12,1], peak:[11,12], color:'#f97316',
+  { name:'Mikan', ja:'みかん', emoji:'🍊', months:[11,12,1], peak:[11,12], color:C.budOpen,
     regions:['Wakayama','Ehime','Shizuoka','Nagasaki'], note:'Japan\'s most popular winter citrus' },
 ];
 
@@ -436,7 +463,7 @@ const FLOWER_TYPES = [
 ];
 
 const FESTIVAL_TYPES = [
-  { type: 'fireworks', emoji: '🎆', name: 'Fireworks', color: '#f97316' },
+  { type: 'fireworks', emoji: '🎆', name: 'Fireworks', color: C.budOpen },
   { type: 'matsuri',   emoji: '🏮', name: 'Festival',  color: '#dc2626' },
   { type: 'winter',    emoji: '❄️', name: 'Winter',    color: '#0ea5e9' },
 ];
@@ -527,7 +554,7 @@ function renderFruitMonth(m) {
         <span style="font-size:11px;color:#666">${farm.address || ''}</span><br>
         <span style="font-size:11px;color:#555">${(farm.fruits||[]).join(' · ')}</span>
         <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
-          <a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>
+          <a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>
           ${farm.url && srcLabel ? `<a href="${farm.url}" target="_blank" style="color:#0369a1;font-size:12px">${srcLabel} →</a>` : ''}
         </div>
       </div>`);
@@ -614,7 +641,7 @@ function avgDiffLabel(forecastIso, normalIso) {
   const diff = Math.round((new Date(forecastIso) - new Date(normalIso)) / 86400000);
   if (diff === 0) return '';
   const sign = diff < 0 ? '−' : '+';
-  const col = diff < -3 ? '#be185d' : diff > 3 ? '#059669' : '#a3a3a3';
+  const col = diff < -3 ? C.peak : diff > 3 ? '#059669' : '#a3a3a3';
   return `<span style="font-size:0.7rem;color:${col};margin-left:4px">${sign}${Math.abs(diff)}d vs avg</span>`;
 }
 
@@ -709,7 +736,7 @@ async function loadPrefSpots(prefCode, prefName) {
         ${bloomBar(spot.bloomRate, spot.fullRate, spot.fullBloomForecast)}
         <div class="sub" style="margin-top:4px">
           ${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}
-          &nbsp;&middot;&nbsp; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Google Maps &rarr;</a>
+          &nbsp;&middot;&nbsp; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:${C.bloom}">Google Maps &rarr;</a>
         </div>
       </div>`;
     }
@@ -722,10 +749,10 @@ async function loadPrefSpots(prefCode, prefName) {
 function flyToSpot(lat, lon, name, bloomRate, fullRate, status) {
   mapInstance.flyTo([lat, lon], 14, { duration: 0.8 });
   const isEnded = status.includes('Ended') || status.includes('Falling') || status.includes('green');
-  const statusColor = isEnded ? '#4ade80' : '#be185d';
+  const statusColor = isEnded ? C.ended : C.peak;
   const rate = fullRate > 0 ? fullRate : bloomRate;
   const label = fullRate > 0 ? 'Flowering' : 'Growth';
-  const grad = fullRate > 0 ? 'linear-gradient(90deg,#f9a8d4,#be185d)' : 'linear-gradient(90deg,#fdba74,#f97316)';
+  const grad = fullRate > 0 ? 'linear-gradient(90deg,${C.starting},${C.peak})' : 'linear-gradient(90deg,${C.bud},${C.budOpen})';
   const barHtml = !isEnded && rate > 0 ? `<div style="margin:8px 0">
     <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:3px"><span>${label}</span><span>${rate}%</span></div>
     <div style="height:14px;background:#f0f0f0;border-radius:7px;overflow:hidden">
@@ -739,7 +766,7 @@ function flyToSpot(lat, lon, name, bloomRate, fullRate, status) {
       <div class="popup-weather" data-lat="${lat}" data-lon="${lon}" style="font-size:11px;color:#555;margin-top:6px;padding-top:6px;border-top:1px solid #eee;min-height:54px">
         <div style="color:#ccc;font-size:11px">Loading weather…</div>
       </div>
-      <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=${lat},${lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>
     </div>`)
     .openOn(mapInstance);
 }
@@ -792,11 +819,11 @@ async function loadKoyoSpots(prefCode, name) {
     const bounds = [];
     for (const spot of data.spots) {
       if (!spot.lat || !spot.lon) continue;
-      const color = spot.status.includes('Peak') ? '#ea580c' : spot.status.includes('Turning') ? '#fdba74' : '#e5e5e5';
+      const color = spot.status.includes('Peak') ? C.koyoPeak : spot.status.includes('Turning') ? C.koyoEarly : C.dormant;
       const marker = L.circleMarker([spot.lat, spot.lon], {
         radius: 7, fillColor: color, color: 'white', weight: 1.5, fillOpacity: 0.9,
       }).addTo(mapInstance);
-      marker.bindPopup(`<b>${spot.name}</b><br>${spot.status}<br>Peak: ${fmtDate(spot.bestPeak)}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ea580c">Open in Google Maps &rarr;</a>`);
+      marker.bindPopup(`<b>${spot.name}</b><br>${spot.status}<br>Peak: ${fmtDate(spot.bestPeak)}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:${C.koyoLink}">Open in Google Maps &rarr;</a>`);
       markers.push(marker);
       bounds.push([spot.lat, spot.lon]);
     }
@@ -812,9 +839,9 @@ async function loadKoyoSpots(prefCode, name) {
     for (const spot of data.spots) {
       const stars = spot.popularity > 0 ? '★'.repeat(spot.popularity) : '';
       html += `<div class="spot-item" onclick="handleSpotClick(${reg({action:'flyToSpot',lat:spot.lat,lon:spot.lon,name:spot.name,bloomRate:0,fullRate:0,status:spot.status})})">
-        <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''} ${stars ? '<span style="color:#ea580c">'+stars+'</span>' : ''}</h4>
+        <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''} ${stars ? '<span style="color:${C.koyoLink}">'+stars+'</span>' : ''}</h4>
         <div class="sub">${spot.leafType} &middot; Peak: <strong>${fmtDate(spot.bestPeak)}</strong> (${fmtDate(spot.bestStart)} → ${fmtDate(spot.bestEnd)})
-          &nbsp;&middot;&nbsp; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ea580c">Google Maps &rarr;</a>
+          &nbsp;&middot;&nbsp; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:${C.koyoLink}">Google Maps &rarr;</a>
         </div>
       </div>`;
     }
@@ -872,22 +899,22 @@ function updateLegend(type) {
     el.style.display = '';
     el.innerHTML = `
       <div style="font-weight:600;margin-bottom:4px">Bloom Lifecycle</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#d4d4d4"></div> Dormant</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#fdba74"></div> Bud stage</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#fb923c"></div> Buds swelling</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#f97316"></div> Buds opening</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#f9a8d4"></div> Starting to bloom</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#ec4899"></div> Blooming</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#be185d"></div> Full bloom (mankai)</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#4ade80"></div> Ended (green leaves)</div>
-      <div class="legend-row"><div style="background:#db2777;color:white;width:12px;height:12px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px">★</div> Kawazu cherry (early)</div>`;
+      <div class="legend-row"><div class="legend-dot" style="background:${C.dormant}"></div> Dormant</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.bud}"></div> Bud stage</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.budSwell}"></div> Buds swelling</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.budOpen}"></div> Buds opening</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.starting}"></div> Starting to bloom</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.bloom}"></div> Blooming</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.peak}"></div> Full bloom (mankai)</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.ended}"></div> Ended (green leaves)</div>
+      <div class="legend-row"><div style="background:${C.peak};color:white;width:12px;height:12px;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:9px">★</div> Kawazu cherry (early)</div>`;
   } else if (type === 'koyo') {
     el.style.display = '';
     el.innerHTML = `
       <div style="font-weight:600;margin-bottom:4px">Leaf Status</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#ea580c"></div> Peak colors</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#fdba74"></div> Turning</div>
-      <div class="legend-row"><div class="legend-dot" style="background:#e5e5e5"></div> Not yet / ended</div>`;
+      <div class="legend-row"><div class="legend-dot" style="background:${C.koyoPeak}"></div> Peak colors</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.koyoTurn}"></div> Turning</div>
+      <div class="legend-row"><div class="legend-dot" style="background:${C.dormant}"></div> Not yet / ended</div>`;
   } else if (type === 'flowers') {
     el.style.display = '';
     el.innerHTML = `
@@ -971,7 +998,7 @@ function renderFlowers() {
       ${spot.note ? `<div style="font-size:11px;color:#777;margin-top:4px">${spot.note}</div>` : ''}
       <div style="margin-top:8px;display:flex;gap:8px">
         ${spot.url ? `<a href="${spot.url}" target="_blank" style="color:${ft.color};font-size:12px;font-weight:500">Official site →</a>` : ''}
-        <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>
+        <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>
       </div>
     </div>`);
     marker.addTo(mapInstance);
@@ -1027,7 +1054,7 @@ function renderFlowers() {
       ${spot.note ? `<div class="sub" style="margin-top:2px;font-style:italic;color:var(--gray-400)">${spot.note}</div>` : ''}
       <div class="sub" style="margin-top:4px">
         ${spot.url ? `<a href="${spot.url}" target="_blank" onclick="event.stopPropagation()" style="color:#7c3aed;font-size:0.78rem">Official site →</a> &nbsp;` : ''}
-        <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899;font-size:0.78rem">Google Maps →</a>
+        <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:${C.bloom};font-size:0.78rem">Google Maps →</a>
       </div>
     </div>`;
   }
@@ -1286,7 +1313,7 @@ async function searchTrip() {
           iconCreateFunction: cluster => {
             const n = cluster.getChildCount();
             const sz = Math.min(30 + Math.log2(n) * 5, 50);
-            return L.divIcon({ html: `<div style="background:#ec4899;color:white;width:${sz}px;height:${sz}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25)">${n}</div>`, className: '', iconSize: [sz, sz] });
+            return L.divIcon({ html: `<div style="background:${C.bloom};color:white;width:${sz}px;height:${sz}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25)">${n}</div>`, className: '', iconSize: [sz, sz] });
           }
         });
         for (const spot of allSpotsData.spots) {
@@ -1303,9 +1330,9 @@ async function searchTrip() {
         for (const c of bestCities.slice(0, 20)) {
           const coords = TOURIST_CITIES[c.cityName?.toLowerCase()] || TOURIST_CITIES[c.prefName?.toLowerCase()];
           if (!coords) continue;
-          const col = c.status?.includes('Full Bloom') ? '#ec4899' : c.status?.includes('Blooming') ? '#f472b6' : '#e9d5ff';
+          const col = c.status?.includes('Full Bloom') ? C.bloom : c.status?.includes('Blooming') ? C.blooming : '#e9d5ff';
           const mk = L.circleMarker(coords, { radius: 10, fillColor: col, color: 'white', weight: 2, fillOpacity: 0.9 });
-          mk.bindPopup(`<b>${c.cityName}</b><br>${c.prefName}<br><span style="color:#be185d">${c.status||''}</span><br>Full bloom: ${sakuraDateOk(c.fullBloom?.forecast) ? fmtDate(c.fullBloom.forecast) : '—'}`);
+          mk.bindPopup(`<b>${c.cityName}</b><br>${c.prefName}<br><span style="color:${C.peak}">${c.status||''}</span><br>Full bloom: ${sakuraDateOk(c.fullBloom?.forecast) ? fmtDate(c.fullBloom.forecast) : '—'}`);
           mk.addTo(mapInstance);
           markers.push(mk);
           bounds.push(coords);
@@ -1331,7 +1358,7 @@ async function searchTrip() {
           const mk = L.marker([farm.lat, farm.lon], {
             icon: L.divIcon({ html: `<div style="background:white;border:2px solid #16a34a;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emoji}</div>`, className: '', iconSize: [22, 22], iconAnchor: [11, 11] })
           });
-          mk.bindPopup(`<div style="min-width:170px"><b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>${farm.url ? ` &middot; <a href="${farm.url}" target="_blank" style="color:#0369a1;font-size:12px">${srcLabel} →</a>` : ''}</div></div>`);
+          mk.bindPopup(`<div style="min-width:170px"><b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>${farm.url ? ` &middot; <a href="${farm.url}" target="_blank" style="color:#0369a1;font-size:12px">${srcLabel} →</a>` : ''}</div></div>`);
           clusterGroup.addLayer(mk);
         }
         mapInstance.addLayer(clusterGroup);
@@ -1339,9 +1366,9 @@ async function searchTrip() {
 
       // ── Sidebar (no-city) ──
       const seasonItems = [];
-      if (isSakuraSeason) seasonItems.push(`🌸 Cherry blossom${m >= 3 && m <= 4 ? ' <b style="color:#be185d">(peak season!)</b>' : ''}`);
+      if (isSakuraSeason) seasonItems.push(`🌸 Cherry blossom${m >= 3 && m <= 4 ? ' <b style="color:${C.peak}">(peak season!)</b>' : ''}`);
       if (inSeasonFruits.length) seasonItems.push(`${inSeasonFruits[0].emoji} Fruit picking: ${inSeasonFruits.map(f=>f.name).join(', ')}`);
-      if (isKoyoSeason) seasonItems.push(`🍂 Autumn leaves${m >= 10 && m <= 11 ? ' <b style="color:#ea580c">(peak season!)</b>' : ''}`);
+      if (isKoyoSeason) seasonItems.push(`🍂 Autumn leaves${m >= 10 && m <= 11 ? ' <b style="color:${C.koyoLink}">(peak season!)</b>' : ''}`);
       if (!seasonItems.length) seasonItems.push('🌿 Off-peak season — great for fruit picking');
 
       const spotCount = allSpotsData?.spots?.length || 0;
@@ -1409,13 +1436,13 @@ async function searchTrip() {
       if (startDate > petalEnd) return { show: false };
 
       // Trip is entirely before bloom starts → not yet open (bud)
-      if (endDate < bloomStart) return { show: true, color: '#fb923c' };
+      if (endDate < bloomStart) return { show: true, color: C.budSwell };
 
       // Trip overlaps bloom window — color by how close to peak
       const daysFromPeak = Math.floor((tripMid - fullBloom) / 86400000);
-      if (daysFromPeak >= -3 && daysFromPeak <= 7)  return { show: true, color: '#be185d' }; // at peak
-      if (daysFromPeak < -3)                         return { show: true, color: '#f472b6' }; // opening
-      return { show: true, color: '#86efac' };                                                // falling
+      if (daysFromPeak >= -3 && daysFromPeak <= 7)  return { show: true, color: C.peak }; // at peak
+      if (daysFromPeak < -3)                         return { show: true, color: C.blooming }; // opening
+      return { show: true, color: C.falling };                                                // falling
     }
 
     const nearbySakura = [];
@@ -1455,7 +1482,7 @@ async function searchTrip() {
     // Sakura cluster — color reflects predicted state at trip dates
     if (nearbySakura.length) {
       // Pick representative cluster color: peak pink if any at peak, else first spot's color
-      const clusterColor = nearbySakura.some(s => s._tripColor === '#be185d') ? '#ec4899' : (nearbySakura[0]?._tripColor || '#ec4899');
+      const clusterColor = nearbySakura.some(s => s._tripColor === C.peak) ? C.bloom : (nearbySakura[0]?._tripColor || C.bloom);
       clusterGroup = L.markerClusterGroup({ maxClusterRadius: 35, showCoverageOnHover: false,
         iconCreateFunction: cluster => {
           const n = cluster.getChildCount();
@@ -1483,7 +1510,7 @@ async function searchTrip() {
       const mk = L.marker([farm.lat, farm.lon], {
         icon: L.divIcon({ html: `<div style="background:white;border:2px solid #16a34a;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emoji}</div>`, className: '', iconSize: [24, 24], iconAnchor: [12, 12] })
       });
-      mk.bindPopup(`<div style="min-width:180px"><b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>${farm.url ? ` &middot; <a href="${farm.url}" target="_blank" style="color:#0369a1;font-size:12px">${srcLabel} →</a>` : ''}</div></div>`);
+      mk.bindPopup(`<div style="min-width:180px"><b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>${farm.url ? ` &middot; <a href="${farm.url}" target="_blank" style="color:#0369a1;font-size:12px">${srcLabel} →</a>` : ''}</div></div>`);
       mk.addTo(mapInstance);
       markers.push(mk);
       bounds.push([farm.lat, farm.lon]);
@@ -1491,9 +1518,9 @@ async function searchTrip() {
 
     // Koyo markers (orange dots)
     for (const spot of nearbyKoyo) {
-      const col = spot.status?.includes('Peak') ? '#ea580c' : spot.status?.includes('Turning') ? '#f97316' : '#fdba74';
+      const col = spot.status?.includes('Peak') ? C.koyoPeak : spot.status?.includes('Turning') ? C.koyoTurn : C.koyoEarly;
       const mk = L.circleMarker([spot.lat, spot.lon], { radius: 7, fillColor: col, color: 'white', weight: 1.5, fillOpacity: 0.9 });
-      mk.bindPopup(`<b>${spot.name}</b><br>${spot.status}<br>Peak: ${fmtDate(spot.bestPeak)}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ea580c;font-size:12px">Google Maps →</a>`);
+      mk.bindPopup(`<b>${spot.name}</b><br>${spot.status}<br>Peak: ${fmtDate(spot.bestPeak)}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:${C.koyoLink};font-size:12px">Google Maps →</a>`);
       mk.addTo(mapInstance);
       markers.push(mk);
       bounds.push([spot.lat, spot.lon]);
@@ -1506,12 +1533,12 @@ async function searchTrip() {
     const seasonItems = [];
     if (isSakuraSeason) {
       const sakuraNote = nearbySakura.length > 0
-        ? (m >= 3 && m <= 4 ? ' <b style="color:#be185d">(peak season!)</b>' : ` — ${nearbySakura.length} spots in bloom`)
+        ? (m >= 3 && m <= 4 ? ' <b style="color:${C.peak}">(peak season!)</b>' : ` — ${nearbySakura.length} spots in bloom`)
         : ' <span style="color:var(--gray-400)">(ended here — try Hokkaido for May bloom)</span>';
       seasonItems.push(`🌸 Cherry blossom${sakuraNote}`);
     }
     if (inSeasonFruits.length) seasonItems.push(`${inSeasonFruits[0].emoji} Fruit picking: ${inSeasonFruits.map(f=>f.name).join(', ')}`);
-    if (isKoyoSeason) seasonItems.push(`🍂 Autumn leaves${m >= 10 && m <= 11 ? ' <b style="color:#ea580c">(peak season!)</b>' : ''}`);
+    if (isKoyoSeason) seasonItems.push(`🍂 Autumn leaves${m >= 10 && m <= 11 ? ' <b style="color:${C.koyoLink}">(peak season!)</b>' : ''}`);
     if (!seasonItems.length) seasonItems.push('🌿 Off-peak season — great for fruit picking farms');
 
     let html = `<div style="margin:10px 16px;padding:10px 12px;background:#f8fafc;border:1px solid var(--gray-200);border-radius:8px;font-size:0.82rem">
@@ -1523,8 +1550,8 @@ async function searchTrip() {
     if (isSakuraSeason) {
       if (nearbySakura.length) {
         // Describe the predicted state for these dates
-        const atPeak = nearbySakura.filter(s => s._tripColor === '#be185d').length;
-        const opening = nearbySakura.filter(s => s._tripColor === '#f472b6').length;
+        const atPeak = nearbySakura.filter(s => s._tripColor === C.peak).length;
+        const opening = nearbySakura.filter(s => s._tripColor === C.blooming).length;
         const stateNote = atPeak > 0 ? `${atPeak} at peak` : opening > 0 ? `${opening} opening` : 'in bloom';
         html += `<div style="padding:10px 16px;background:var(--pink-light);font-weight:600;font-size:0.85rem;color:var(--pink-dark);border-bottom:1px solid var(--gray-200)">🌸 Cherry Blossom — ${nearbySakura.length} spots in bloom (${stateNote})</div>`;
         nearbySakura.slice(0, 20).forEach(spot => {
@@ -1565,7 +1592,7 @@ async function searchTrip() {
         nearbyKoyo.slice(0, 12).forEach(spot => {
           const stars = spot.popularity > 0 ? '★'.repeat(spot.popularity) : '';
           html += `<div class="spot-item" onclick="handleSpotClick(${reg({action:'flyToKoyo',lat:spot.lat,lon:spot.lon})})">
-            <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''} ${stars ? '<span style="color:#ea580c;font-size:11px">'+stars+'</span>' : ''}</h4>
+            <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''} ${stars ? '<span style="color:${C.koyoLink};font-size:11px">'+stars+'</span>' : ''}</h4>
             <div class="sub">${spot.dist}km · Peak: <strong>${fmtDate(spot.bestPeak)}</strong> &middot; ${spot.status}</div>
           </div>`;
         });
@@ -1667,7 +1694,7 @@ function spotPopupHtml(spot) {
   if (!isEnded) {
     const rate = spot.fullRate > 0 ? spot.fullRate : spot.bloomRate;
     const label = spot.fullRate > 0 ? 'Flowering' : 'Growth';
-    const grad = spot.fullRate > 0 ? 'linear-gradient(90deg,#f9a8d4,#be185d)' : 'linear-gradient(90deg,#fdba74,#f97316)';
+    const grad = spot.fullRate > 0 ? 'linear-gradient(90deg,${C.starting},${C.peak})' : 'linear-gradient(90deg,${C.bud},${C.budOpen})';
     barsHtml = `<div style="margin:8px 0">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:3px"><span>${label}</span><span>${rate}%</span></div>
       <div style="height:16px;background:#f0f0f0;border-radius:8px;overflow:hidden">
@@ -1676,7 +1703,7 @@ function spotPopupHtml(spot) {
     </div>`;
   }
 
-  const statusColor = isEnded ? '#4ade80' : '#be185d';
+  const statusColor = isEnded ? C.ended : C.peak;
   return `<div style="min-width:220px">
     <b>${displayName}</b>
     ${barsHtml}
@@ -1686,7 +1713,7 @@ function spotPopupHtml(spot) {
       <div style="color:#ccc;font-size:11px">Loading weather…</div>
     </div>
     <div style="margin-top:4px">
-      <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>
+      <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>
     </div>
   </div>`;
 }
@@ -1697,7 +1724,7 @@ function spotCardHtml(spot, extra) {
     ${bloomBar(spot.bloomRate, spot.fullRate, spot.fullBloomForecast)}
     <div class="sub" style="margin-top:4px">
       ${extra ? extra + ' &middot; ' : ''}${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}
-      &middot; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899">Maps</a>
+      &middot; <a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" onclick="event.stopPropagation()" style="color:${C.bloom}">Maps</a>
     </div>
   </div>`;
 }
@@ -1769,12 +1796,12 @@ async function loadAllSpotsOnMap() {
         // Color by majority status
         const n = childMarkers.length;
         let color, textColor;
-        if (ended > n * 0.5) { color = '#4ade80'; textColor = '#166534'; }        // green — mostly ended
-        else if (peak > n * 0.3) { color = '#be185d'; textColor = 'white'; }       // deep pink — peak
-        else if (blooming > n * 0.3) { color = '#ec4899'; textColor = 'white'; }   // pink — blooming
-        else if (buds > n * 0.3) { color = '#f97316'; textColor = 'white'; }       // orange — buds
-        else if (ended > 0 && blooming > 0) { color = '#f9a8d4'; textColor = '#333'; } // mixed
-        else { color = '#d4d4d4'; textColor = '#333'; }                             // dormant
+        if (ended > n * 0.5) { color = C.ended; textColor = '#166534'; }        // green — mostly ended
+        else if (peak > n * 0.3) { color = C.peak; textColor = 'white'; }       // deep pink — peak
+        else if (blooming > n * 0.3) { color = C.bloom; textColor = 'white'; }   // pink — blooming
+        else if (buds > n * 0.3) { color = C.budOpen; textColor = 'white'; }       // orange — buds
+        else if (ended > 0 && blooming > 0) { color = C.starting; textColor = "#333"; } // mixed
+        else { color = C.dormant; textColor = '#333'; }                             // dormant
 
         const size = Math.min(38 + n * 0.4, 58);
         return L.divIcon({
@@ -1805,7 +1832,7 @@ async function loadAllSpotsOnMap() {
       for (const spot of kawazu.spots || []) {
         if (!spot.lat || !spot.lon) continue;
         const kEnded = spotStatusWithDate(spot.bloomRate, spot.fullRate, spot.fullBloomForecast)?.includes('Ended');
-        const kawazuColor = kEnded ? '#4ade80' : '#db2777';
+        const kawazuColor = kEnded ? C.ended : '#db2777';
         const m = L.marker([spot.lat, spot.lon], {
           icon: L.divIcon({
             html: `<div style="background:${kawazuColor};color:white;width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2)" title="Kawazu Cherry">★</div>`,
@@ -1818,7 +1845,7 @@ async function loadAllSpotsOnMap() {
           `<em style="color:#db2777">Kawazu Cherry (河津桜)</em><br>` +
           `<b>${kStatus}</b><br>` +
           `<span style="font-size:11px;color:#888">${fmtDates(spot.bloomForecast, spot.bloomRate, spot.fullBloomForecast, spot.fullRate)}</span><br>` +
-          `<a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a></div>`
+          `<a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a></div>`
         );
         markers.push(m);
       }
@@ -1980,7 +2007,7 @@ function renderWhatsOn(m) {
       ${f.note ? `<div style="font-size:11px;color:#777;margin-top:4px">${f.note}</div>` : ''}
       <div style="margin-top:8px;display:flex;gap:8px">
         ${f.url ? `<a href="${f.url}" target="_blank" style="color:${ft.color};font-size:12px;font-weight:500">Official site →</a>` : ''}
-        <a href="https://www.google.com/maps/search/?api=1&query=${f.lat},${f.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a>
+        <a href="https://www.google.com/maps/search/?api=1&query=${f.lat},${f.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a>
       </div>
     </div>`);
     marker.addTo(mapInstance);
@@ -2018,7 +2045,7 @@ function renderWhatsOn(m) {
       const mk = L.marker([farm.lat, farm.lon], {
         icon: L.divIcon({ html: `<div style="background:white;border:2px solid #16a34a;border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,0.15)">${emoji}</div>`, className: '', iconSize: [20, 20], iconAnchor: [10, 10] })
       });
-      mk.bindPopup(`<b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:#ec4899;font-size:12px">Google Maps</a></div>`);
+      mk.bindPopup(`<b>${farm.name}</b><br><span style="font-size:11px;color:#666">${farm.address||''}</span><br><span style="font-size:11px">${(farm.fruits||[]).join(' · ')}</span><div style="margin-top:6px"><a href="https://www.google.com/maps/search/?api=1&query=${farm.lat},${farm.lon}" target="_blank" style="color:${C.bloom};font-size:12px">Google Maps</a></div>`);
       clusterGroup.addLayer(mk);
     }
     mapInstance.addLayer(clusterGroup);
@@ -2062,7 +2089,7 @@ function renderWhatsOn(m) {
 
   const bannerColor = isFireworksSeason ? '#fff7ed' : isWinterEvent ? '#eff6ff' : isSakuraSeason ? '#fdf2f8' : isKoyoSeason ? '#fff7ed' : '#f8fafc';
   const bannerBorder = isFireworksSeason ? '#fed7aa' : isWinterEvent ? '#bfdbfe' : isSakuraSeason ? '#fbcfe8' : isKoyoSeason ? '#fed7aa' : 'var(--gray-200)';
-  const bannerText = isFireworksSeason ? '#92400e' : isWinterEvent ? '#1e3a8a' : isSakuraSeason ? '#be185d' : isKoyoSeason ? '#92400e' : 'var(--gray-600)';
+  const bannerText = isFireworksSeason ? '#92400e' : isWinterEvent ? '#1e3a8a' : isSakuraSeason ? C.peak : isKoyoSeason ? '#92400e' : 'var(--gray-600)';
 
   const bannerHtml = seasonCues.length
     ? `<div style="margin:10px 16px;padding:10px 12px;background:${bannerColor};border:1px solid ${bannerBorder};border-radius:8px;font-size:0.82rem;color:${bannerText}">
@@ -2098,7 +2125,7 @@ function renderWhatsOn(m) {
           ${f.note ? `<div class="sub" style="font-style:italic;color:var(--gray-400);margin-top:2px">${f.note}</div>` : ''}
           <div class="sub" style="margin-top:3px">
             ${f.url ? `<a href="${f.url}" target="_blank" onclick="event.stopPropagation()" style="color:${ft.color};font-size:0.78rem">Official site →</a> &nbsp;` : ''}
-            <a href="https://www.google.com/maps/search/?api=1&query=${f.lat},${f.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899;font-size:0.78rem">Google Maps</a>
+            <a href="https://www.google.com/maps/search/?api=1&query=${f.lat},${f.lon}" target="_blank" onclick="event.stopPropagation()" style="color:${C.bloom};font-size:0.78rem">Google Maps</a>
           </div>
         </div>`;
       }
@@ -2122,7 +2149,7 @@ function renderWhatsOn(m) {
         ${s.peakStart ? `<div class="sub">Peak: <b>${s.peakStart.slice(0,5).replace('-','/')}–${s.peakEnd.slice(0,5).replace('-','/')}</b></div>` : ''}
         <div class="sub" style="margin-top:3px">
           ${s.url ? `<a href="${s.url}" target="_blank" onclick="event.stopPropagation()" style="color:${ft?.color};font-size:0.78rem">Official site →</a> &nbsp;` : ''}
-          <a href="https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}" target="_blank" onclick="event.stopPropagation()" style="color:#ec4899;font-size:0.78rem">Google Maps</a>
+          <a href="https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}" target="_blank" onclick="event.stopPropagation()" style="color:${C.bloom};font-size:0.78rem">Google Maps</a>
         </div>
       </div>`;
     });
