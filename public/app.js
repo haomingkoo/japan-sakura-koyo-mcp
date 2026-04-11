@@ -1698,12 +1698,20 @@ async function searchTrip() {
 
     // ── Sidebar (city-based) ──
     const cityLabel = resolved.map(c => c.name.charAt(0).toUpperCase()+c.name.slice(1)).join(', ');
+    const sakuraPeakCount = nearbySakura.filter(s => s._tripColor === C.peak).length;
+    const sakuraOpeningCount = nearbySakura.filter(s => s._tripColor === C.blooming).length;
+    const sakuraBudCount = nearbySakura.filter(s => s._tripColor === C.budSwell).length;
     const seasonItems = [];
     if (isSakuraSeason) {
-      const sakuraNote = nearbySakura.length > 0
-        ? (m >= 3 && m <= 4 ? ` <b style="color:${C.peak}">(peak season!)</b>` : ` — ${nearbySakura.length} spots in bloom`)
-        : ' <span style="color:var(--gray-400)">(ended here — try Hokkaido for May bloom)</span>';
-      seasonItems.push(`🌸 Cherry blossom${sakuraNote}`);
+      if (nearbySakura.length > 0) {
+        const sakuraParts = [];
+        if (sakuraPeakCount) sakuraParts.push(`${sakuraPeakCount} near peak`);
+        if (sakuraOpeningCount) sakuraParts.push(`${sakuraOpeningCount} opening`);
+        if (sakuraBudCount) sakuraParts.push(`${sakuraBudCount} coming soon`);
+        seasonItems.push(`🌸 Cherry blossom: ${nearbySakura.length} spots match your dates${sakuraParts.length ? ` (${sakuraParts.join(', ')})` : ''}`);
+      } else {
+        seasonItems.push('🌿 Cherry blossom: mostly past peak for these cities and dates');
+      }
     }
     if (inSeasonFruits.length) seasonItems.push(`${inSeasonFruits[0].emoji} Fruit picking: ${inSeasonFruits.map(f=>f.name).join(', ')}`);
     if (isKoyoSeason) seasonItems.push(`🍂 Autumn leaves${m >= 10 && m <= 11 ? ` <b style="color:${C.koyoPeak}">(peak season!)</b>` : ''}`);
@@ -1717,11 +1725,12 @@ async function searchTrip() {
     // Sakura section
     if (isSakuraSeason) {
       if (nearbySakura.length) {
-        // Describe the predicted state for these dates
-        const atPeak = nearbySakura.filter(s => s._tripColor === C.peak).length;
-        const opening = nearbySakura.filter(s => s._tripColor === C.blooming).length;
-        const stateNote = atPeak > 0 ? `${atPeak} at peak` : opening > 0 ? `${opening} opening` : 'in bloom';
-        html += `<div style="padding:10px 16px;background:var(--pink-light);font-weight:600;font-size:0.85rem;color:var(--pink-dark);border-bottom:1px solid var(--gray-200)">🌸 Cherry Blossom — ${nearbySakura.length} spots in bloom (${stateNote})</div>`;
+        const stateParts = [];
+        if (sakuraPeakCount) stateParts.push(`${sakuraPeakCount} near peak`);
+        if (sakuraOpeningCount) stateParts.push(`${sakuraOpeningCount} opening`);
+        if (sakuraBudCount) stateParts.push(`${sakuraBudCount} coming soon`);
+        const stateNote = stateParts.join(', ') || 'matched to your dates';
+        html += `<div style="padding:10px 16px;background:var(--pink-light);font-weight:600;font-size:0.85rem;color:var(--pink-dark);border-bottom:1px solid var(--gray-200)">🌸 Cherry Blossom — ${nearbySakura.length} spots that match your dates (${stateNote})</div>`;
         nearbySakura.slice(0, 20).forEach(spot => {
           html += `<div class="spot-item" onclick="handleSpotClick(${reg({action:'flyToSpot',lat:spot.lat,lon:spot.lon,name:spot.name,bloomRate:spot.bloomRate,fullRate:spot.fullRate,status:spot.status,fullBloomForecast:spot.fullBloomForecast})})">
             <h4>${spot.name} ${spot.nameRomaji ? '<span style="font-weight:400;color:var(--gray-600)">'+spot.nameRomaji+'</span>' : ''}</h4>
