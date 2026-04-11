@@ -160,7 +160,7 @@ Give it your start and end dates, get back the cities where full bloom overlaps 
 → Cities with bloom in that window, ranked by timing, avg comparison
 ```
 
-**`get_kawazu_cherry`** — early-season deep-pink variety
+**`get_kawazu_cherry_forecast`** — early-season deep-pink variety
 
 Kawazu cherry blooms January–February in Izu Peninsula, months before standard sakura opens anywhere.
 
