@@ -333,7 +333,12 @@ Use the japan-seasons-mcp tools based on the travel month:
           return { content: [{ type: "text", text: `Prefecture "${prefecture}" not found.\n\n${getAvailablePrefectures().join("\n")}` }], isError: true };
         }
         const result = await getSakuraSpots(prefCode);
-        let output = `# Sakura Spots — ${result.prefecture}\nLast updated: ${result.lastUpdated} | ${result.spots.length} spots\n\n`;
+        const freshObservationCount = result.spots.filter((spot) => spot.statusSource === "observation").length;
+        let output = `# Sakura Spots — ${result.prefecture}\nForecast updated: ${formatSakuraDate(result.lastUpdated, outputConfig)}`;
+        if (result.observationUpdated) {
+          output += ` | Spot observations updated: ${formatSakuraDate(result.observationUpdated, outputConfig)}`;
+        }
+        output += ` | ${result.spots.length} spots\n\n`;
         if (result.jmaStation) {
           const jma = result.jmaStation;
           output += `## JMA Station: ${jma.name}\n`;
@@ -350,29 +355,24 @@ Use the japan-seasons-mcp tools based on the travel month:
             output += `- Full bloom: ${formatSakuraDate(jma.fullForecast, outputConfig)} (avg ${jma.fullNormal ?? "N/A"})\n\n`;
           }
         }
-        const hasAnyObservation = result.spots.some(s => s.observationState !== null);
-        if (hasAnyObservation) {
-          output += `_${result.spots.filter(s => s.observationState !== null).length}/${result.spots.length} spots have current observation data from JMC. Remaining spots show forecast model estimates._\n\n`;
+        output += `_${SAKURA_SPOT_MODEL_NOTE}_\n`;
+        if (result.observationUpdated) {
+          output += `_${freshObservationCount}/${result.spots.length} spots currently use fresh spot observations as the main status._\n\n`;
         } else {
-          output += `_${SAKURA_SPOT_MODEL_NOTE}_\n\n`;
+          output += `\n`;
         }
         output += `## Viewing spots\n\n`;
         for (const spot of result.spots) {
           output += `### ${spot.name}${spot.nameReading ? ` (${spot.nameReading})` : ""}\n`;
-          const ppNote = postPeakNote(spot.fullBloomForecast);
-          if (spot.observationStatus) {
-            // Lead with real observation when available
-            const obsDate = spot.observationUpdated ? ` (observed ${formatSakuraDate(spot.observationUpdated, outputConfig)})` : "";
-            output += `- **${spot.observationStatus}**${obsDate}\n`;
-            if (ppNote) output += `- ⚠️ ${ppNote}\n`;
+          if (spot.statusSource === "observation") {
+            const obsDate = spot.statusUpdated ? ` (observed ${formatSakuraDate(spot.statusUpdated, outputConfig)})` : "";
+            output += `- **${spot.displayStatus}**${obsDate}\n`;
             output += `- _Forecast model: ${spot.status} — bloom ${spot.bloomRate}%, full-bloom ${spot.fullRate}%_\n`;
-          } else if (ppNote) {
-            // No observation but we can estimate post-peak status from elapsed days
-            output += `- ⚠️ **${ppNote}**\n`;
-            output += `- _Last forecast model reading: ${spot.status} (bloom ${spot.bloomRate}%, full-bloom ${spot.fullRate}%)_\n`;
           } else {
-            // Active season, no observation — use forecast model estimate
-            output += `- **${spot.status}** _(forecast estimate)_\n`;
+            const staleNote = spot.observationUpdated && !spot.observationFresh
+              ? `; last spot observation ${formatSakuraDate(spot.observationUpdated, outputConfig)} is stale`
+              : "";
+            output += `- **${spot.displayStatus}** _(forecast estimate${staleNote})_\n`;
             output += `- Bloom rate: **${spot.bloomRate}%** | Full-bloom rate: **${spot.fullRate}%**\n`;
           }
           if (spot.bloomForecast || spot.fullBloomForecast) {

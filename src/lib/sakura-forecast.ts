@@ -53,16 +53,22 @@ export interface SakuraSpot {
   bloomRate: number;      // 0-100 (% progress toward first bloom)
   fullRate: number;       // 0-100 (% progress from first bloom to full bloom)
   status: string;         // human-readable model status (from jr_data)
-  // Spot-level observation from JMC's current-status layer (more real-time than jr_data)
-  observationState: number | null;   // 0=pre-bloom,1=first bloom,2=30%,3=70%,4=full bloom,5=petals falling
+  // Spot-level observation from JMC's current-status layer
+  observationState: number | null;   // 0=pre-bloom,1=first bloom,2=30%,3=70%,4=full bloom,5=petals falling,6=hazakura
   observationStatus: string | null;  // human-readable label for observation state
   observationUpdated: string | null; // ISO date when observation was recorded
+  observationFresh: boolean;         // true when observationUpdated is recent enough to trust as primary
+  displayStatus: string;             // final user-facing status after freshness-aware source selection
+  statusSource: "observation" | "estimate";
+  statusUpdated: string | null;
+  phase: "dormant" | "buds" | "bud_swell" | "bud_open" | "starting" | "blooming" | "peak" | "past_peak" | "falling" | "ended";
 }
 
 export interface SakuraSpotResult {
   source: string;
   prefecture: string;
   lastUpdated: string;
+  observationUpdated: string | null;
   jmaStation: {
     name: string;
     bloomRate: number;
@@ -166,11 +172,12 @@ const NKISHOU_SAKURA_API = "https://other-api-prod.n-kishou.co.jp/get-sakura-hw"
 const NKISHOU_SPOTS_API = "https://other-api-prod.n-kishou.co.jp/list-jr-points";
 
 // ─── Spot observation layer ───────────────────────────────────────────────────
-// JMC publishes a separate current-status feed for each spot, updated when
-// reporters (spot managers, JMC partners) submit actual observations.
-// This is more real-time than jr_data (model estimate) but only covers spots
-// that have been recently reported. We merge it as a supplement, never a
-// replacement — jr_data is always available as fallback.
+// JMC publishes a separate current-status layer for many spots.
+// It can be newer than jr_data, but it may be missing or stale for some spots.
+// We prefer it only when its timestamp is recent enough; jr_data remains the
+// durable fallback.
+
+export const SAKURA_SPOT_OBSERVATION_FRESH_HOURS = 48;
 
 export const OBS_STATE_LABELS: Record<number, string> = {
   0: "Pre-bloom (buds visible)",
@@ -179,15 +186,98 @@ export const OBS_STATE_LABELS: Record<number, string> = {
   3: "70% bloom (nanabu-zaki)",
   4: "Full bloom (mankai)",
   5: "Petals starting to fall",
+  6: "Leafy (hazakura)",
 };
 
-// Observation filter_codes 0-5 correspond to the state values returned.
-// filter_code=6 returns 400 (not used). Fetch all 6 in parallel.
+const OBS_STATE_PHASES: Record<number, SakuraSpot["phase"]> = {
+  0: "buds",
+  1: "starting",
+  2: "blooming",
+  3: "blooming",
+  4: "peak",
+  5: "falling",
+  6: "ended",
+};
+
+function parseValidDate(iso: string | null | undefined): Date | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function hoursSince(iso: string | null | undefined): number | null {
+  const date = parseValidDate(iso);
+  if (!date) return null;
+  return (Date.now() - date.getTime()) / 3_600_000;
+}
+
+function daysSince(iso: string | null | undefined): number | null {
+  const date = parseValidDate(iso);
+  if (!date) return null;
+  return Math.floor((Date.now() - date.getTime()) / 86_400_000);
+}
+
+function isFreshObservation(iso: string | null | undefined): boolean {
+  const ageHours = hoursSince(iso);
+  if (ageHours === null) return false;
+  return ageHours <= SAKURA_SPOT_OBSERVATION_FRESH_HOURS;
+}
+
+function computeEstimatedSpotPhase(
+  bloomRate: number,
+  fullRate: number,
+  fullBloomForecast: string | null,
+): SakuraSpot["phase"] {
+  if (fullRate >= 100) {
+    const days = daysSince(fullBloomForecast);
+    if (days !== null) {
+      if (days > 10) return "ended";
+      if (days > 6) return "falling";
+      if (days > 3) return "past_peak";
+    }
+    return "peak";
+  }
+  if (fullRate >= 90) return "peak";
+  if (fullRate >= 20) return fullRate >= 70 ? "blooming" : "starting";
+  if (fullRate > 0) return "starting";
+  if (bloomRate >= 100) return "starting";
+  if (bloomRate >= 85) return "bud_open";
+  if (bloomRate >= 60) return "bud_swell";
+  if (bloomRate > 0) return "buds";
+  return "buds";
+}
+
+function computeEstimatedDisplayStatus(
+  bloomRate: number,
+  fullRate: number,
+  fullBloomForecast: string | null,
+): string {
+  const phase = computeEstimatedSpotPhase(bloomRate, fullRate, fullBloomForecast);
+  if (phase === "past_peak") return "Past peak — still some petals (estimated)";
+  if (phase === "falling") return "Petals likely falling (estimated)";
+  if (phase === "ended") return "Likely hazakura / green leaves (estimated)";
+  return computeSpotStatus(bloomRate, fullRate);
+}
+
+function latestObservationTimestamp(observations: Map<string, { state: number; updated: string }>): string | null {
+  let latest: string | null = null;
+  for (const entry of observations.values()) {
+    if (!entry.updated) continue;
+    if (!latest || entry.updated > latest) latest = entry.updated;
+  }
+  return latest;
+}
+
+// Observation filter_codes 0-6 correspond to the state values returned:
+//   0=pre-bloom, 1=first bloom, 2=30%, 3=70%, 4=full bloom,
+//   5=petals falling, 6=hazakura (green leaves).
+// Past-season prefectures (e.g. Tokyo by mid-April) return 400 for all codes —
+// those failures are silently swallowed below and we fall back to jr_data.
 async function fetchPrefObservations(prefCode: string): Promise<Map<string, { state: number; updated: string }>> {
   const map = new Map<string, { state: number; updated: string }>();
   try {
     const results = await Promise.allSettled(
-      [0, 1, 2, 3, 4, 5].map(async (fc) => {
+      [0, 1, 2, 3, 4, 5, 6].map(async (fc) => {
         const url = `${NKISHOU_SPOTS_API}?type=sakura&filter_mode=observation&filter_code=${fc}&area_mode=pref&area_code=${prefCode}`;
         const res = await safeFetch(url);
         const data = await res.json();
@@ -331,6 +421,14 @@ function parseSpotsResponse(data: any, prefCode: string, observations: Map<strin
     const fullRate = s.full_rate ?? 0;
     const code = String(s.code ?? "");
     const obs = observations.get(code) ?? null;
+    const observationUpdated = obs ? obs.updated : null;
+    const observationFresh = isFreshObservation(observationUpdated);
+    const estimatedPhase = computeEstimatedSpotPhase(bloomRate, fullRate, s.full_forecast_datetime ?? null);
+    const observationPhase = obs ? (OBS_STATE_PHASES[obs.state] ?? null) : null;
+    const displayStatus = observationFresh && obs
+      ? (OBS_STATE_LABELS[obs.state] ?? "Current bloom status")
+      : computeEstimatedDisplayStatus(bloomRate, fullRate, s.full_forecast_datetime ?? null);
+    const statusSource: SakuraSpot["statusSource"] = observationFresh && obs ? "observation" : "estimate";
     return {
       code,
       name: s.name ?? "",
@@ -346,7 +444,12 @@ function parseSpotsResponse(data: any, prefCode: string, observations: Map<strin
       status: computeSpotStatus(bloomRate, fullRate),
       observationState: obs ? obs.state : null,
       observationStatus: obs ? (OBS_STATE_LABELS[obs.state] ?? null) : null,
-      observationUpdated: obs ? obs.updated : null,
+      observationUpdated,
+      observationFresh,
+      displayStatus,
+      statusSource,
+      statusUpdated: statusSource === "observation" ? observationUpdated : (result?.update_datetime ?? null),
+      phase: statusSource === "observation" && observationPhase ? observationPhase : estimatedPhase,
     };
   });
 
@@ -354,6 +457,7 @@ function parseSpotsResponse(data: any, prefCode: string, observations: Map<strin
     source: "Japan Meteorological Corporation (n-kishou.co.jp)",
     prefecture: PREF_CODE_TO_NAME_EN[prefCode] ?? result?.area ?? "",
     lastUpdated: result?.update_datetime ?? "",
+    observationUpdated: latestObservationTimestamp(observations),
     jmaStation,
     spots,
   };
@@ -396,7 +500,7 @@ export const SAKURA_FULL_BLOOM_MANKAI_MIN = SAKURA_FULL_BLOOM_RATE_STAGES[SAKURA
 export const SAKURA_BLOOM_RATE_SCALE_LINE = formatScaleLine("Bloom rate", SAKURA_BLOOM_RATE_STAGES);
 export const SAKURA_FULL_BLOOM_RATE_SCALE_LINE = formatScaleLine("Full-bloom rate", SAKURA_FULL_BLOOM_RATE_STAGES);
 export const SAKURA_SPOT_MODEL_NOTE =
-  "Spot statuses below are JMC model estimates from the bloom meter. They are not official JMA confirmations, and they can differ from the prefecture reference tree above or from JMC's separate spot-observation views.";
+  `Spot status uses fresh JMC spot observations first when updated within the last ${SAKURA_SPOT_OBSERVATION_FRESH_HOURS} hours. If a current spot observation is missing or stale, the JMC bloom-meter forecast is used instead. The prefecture JMA reference tree is context only.`;
 
 function computeSpotStatus(bloomRate: number, fullRate: number): string {
   if (fullRate > 0) return getStageStatus(fullRate, SAKURA_FULL_BLOOM_RATE_STAGES);

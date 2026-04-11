@@ -62,9 +62,17 @@ function slimSakuraSpot(s: Record<string, unknown>) {
   return {
     lat: s.lat, lon: s.lon,
     name: s.name, nameRomaji: s.nameRomaji,
+    prefecture: s.prefecture,
     code: s.code, // first 2 chars = pref code for JMA link
     bloomRate: s.bloomRate, fullRate: s.fullRate,
     bloomForecast: s.bloomForecast, fullBloomForecast: s.fullBloomForecast,
+    status: s.status,
+    displayStatus: s.displayStatus,
+    statusSource: s.statusSource,
+    statusUpdated: s.statusUpdated,
+    observationUpdated: s.observationUpdated,
+    observationFresh: s.observationFresh,
+    phase: s.phase,
   };
 }
 
