@@ -5,6 +5,7 @@
       "type": "string",
       "title": "Date Style",
       "description": "How dates should be rendered in tool output.",
+      "x-from": { "query": "dateStyle" },
       "enum": ["friendly", "iso"],
       "default": "friendly"
     },
@@ -12,6 +13,7 @@
       "type": "string",
       "title": "Temperature Unit",
       "description": "Preferred temperature unit for weather output.",
+      "x-from": { "query": "temperatureUnit" },
       "enum": ["celsius", "fahrenheit"],
       "default": "celsius"
     },
@@ -19,12 +21,14 @@
       "type": "boolean",
       "title": "Include Coordinates",
       "description": "Whether GPS coordinates should be included for spots, farms, and festivals.",
+      "x-from": { "query": "includeCoordinates" },
       "default": true
     },
     "mapLanguage": {
       "type": "string",
       "title": "Map Language",
       "description": "Preferred language for forecast map links when both English and Japanese URLs are available.",
+      "x-from": { "query": "mapLanguage" },
       "enum": ["english", "japanese"],
       "default": "english"
     }
