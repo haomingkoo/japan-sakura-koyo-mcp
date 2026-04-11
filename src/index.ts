@@ -862,6 +862,26 @@ Use the japan-seasons-mcp tools based on the travel month:
       }
     }
   );
+
+  // ── Tool titles (human-readable display names per MCP 2025-06-18 spec) ──
+  const TOOL_TITLES: Record<string, string> = {
+    get_sakura_forecast:  "Cherry Blossom Forecast",
+    get_sakura_spots:     "Cherry Blossom Viewing Spots",
+    get_sakura_best_dates:"Best Cherry Blossom Dates for Trip",
+    get_kawazu_cherry:    "Kawazu Early Cherry Blossom Forecast",
+    get_koyo_forecast:    "Autumn Leaves Forecast",
+    get_koyo_spots:       "Autumn Leaves Viewing Spots",
+    get_koyo_best_dates:  "Best Autumn Leaves Dates for Trip",
+    get_weather_forecast: "Japan Weather Forecast",
+    get_flowers:          "Seasonal Flower Spots",
+    get_fruit_seasons:    "Fruit Picking Season Calendar",
+    get_festivals:        "Japan Seasonal Festivals",
+    get_fruit_farms:      "Fruit Picking Farms",
+  };
+  const registeredTools = (server as any)._registeredTools as Record<string, { title?: string }>;
+  for (const [name, title] of Object.entries(TOOL_TITLES)) {
+    if (registeredTools[name]) registeredTools[name].title = title;
+  }
 }
 
 // ─── Formatting helper ───────────────────────────────────────────────────────
