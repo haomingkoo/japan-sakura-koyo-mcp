@@ -537,6 +537,7 @@ const FOOTER_NOTES = {
 function setMode(m) {
   mode = m;
   ['sakura','koyo','fruit','flowers','whatson','trip'].forEach(k => { const b = $(`btn-${k}`); if (b) b.classList.toggle('active', k === m); });
+  const sel = document.getElementById('mode-select'); if (sel) sel.value = m;
   if (m !== 'sakura') { const bf = $('bloom-filters'); if (bf) bf.style.display = 'none'; }
   const fn = $('footer-data-note'); if (fn) fn.innerHTML = FOOTER_NOTES[m] || '';
   if (m === 'sakura') loadSakura();
@@ -546,6 +547,11 @@ function setMode(m) {
   if (m === 'flowers') loadFlowers();
   if (m === 'whatson') loadWhatsOn();
   pushUrlState({ mode: m });
+}
+
+function handleModeSelect(val) {
+  if (val === 'nearme') { findNearMe(); return; }
+  setMode(val);
 }
 
 // ── Static config tables ──

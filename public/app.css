@@ -28,6 +28,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
 
 /* ── Controls ── */
 .controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mode-select { display: none; }
 .mode-btn {
   padding: 6px 14px; border: 1px solid var(--gray-200); border-radius: 20px;
   background: white; cursor: pointer; font-size: 0.82rem; font-weight: 500;
@@ -133,7 +134,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
   .main { flex-direction: column; }
   .map-container { height: 50vh; }
   .sidebar { width: 100%; height: 50vh; border-left: none; border-top: 1px solid var(--gray-200); -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+  .top-bar { flex-wrap: nowrap; padding: 8px 12px; }
   .top-bar h1 { font-size: 1rem; }
+  .controls { display: none; }
+  .mode-select {
+    display: block; padding: 6px 10px; border: 1px solid var(--gray-200);
+    border-radius: 20px; background: white; font-size: 0.82rem; font-weight: 500;
+    color: var(--gray-600); cursor: pointer; max-width: 180px;
+  }
   .legend { bottom: 10px; left: 10px; padding: 6px 10px; }
   .legend-toggle-btn { display: flex; align-items: center; gap: 4px; }
   .legend .legend-body { display: none; }

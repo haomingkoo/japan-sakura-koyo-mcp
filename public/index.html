@@ -27,6 +27,15 @@
       <button class="mode-btn" id="btn-trip" onclick="setMode('trip')" aria-label="Plan My Trip">Plan My Trip</button>
       <button class="mode-btn" onclick="findNearMe()" id="btn-nearme" title="Find sakura spots near your current location" aria-label="Find sakura spots near my location">Near Me</button>
     </div>
+    <select class="mode-select" id="mode-select" onchange="handleModeSelect(this.value)" aria-label="Select mode">
+      <option value="sakura">🌸 Cherry Blossom</option>
+      <option value="koyo">🍁 Autumn Leaves</option>
+      <option value="fruit">🍓 Fruit Picking</option>
+      <option value="flowers">🌷 Flowers</option>
+      <option value="whatson">📅 What's On</option>
+      <option value="trip">🗓️ Plan My Trip</option>
+      <option value="nearme">📍 Near Me</option>
+    </select>
   </div>
 
   <div class="main">
