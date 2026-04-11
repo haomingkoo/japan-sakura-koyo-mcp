@@ -176,6 +176,17 @@ function initMap() {
 // ── Helpers ──
 const $ = id => document.getElementById(id);
 
+// Returns n skeleton placeholder rows for use while content is loading.
+function skeletonHtml(n = 5) {
+  return Array.from({ length: n }, () =>
+    `<div class="skeleton-item">
+      <div class="skeleton-line w-70"></div>
+      <div class="skeleton-line w-50"></div>
+      <div class="skeleton-line w-40"></div>
+    </div>`
+  ).join('');
+}
+
 // Escape user/API-sourced strings before inserting into innerHTML.
 function esc(s) {
   if (!s) return '';
@@ -588,8 +599,18 @@ const FOOTER_NOTES = {
   trip:    `<b>Data:</b> Sakura &amp; koyo from <a href="https://n-kishou.com" target="_blank" rel="noopener">Japan Met Corp</a> · other activities are curated typical dates<br>`,
 };
 
+const MODE_TITLES = {
+  sakura:  'Cherry Blossom — Japan in Seasons',
+  koyo:    'Autumn Leaves — Japan in Seasons',
+  fruit:   'Fruit Picking — Japan in Seasons',
+  flowers: 'Flowers — Japan in Seasons',
+  whatson: "What's On — Japan in Seasons",
+  trip:    'Plan My Trip — Japan in Seasons',
+};
+
 function setMode(m) {
   mode = m;
+  document.title = MODE_TITLES[m] || 'Japan in Seasons';
   ['sakura','koyo','fruit','flowers','whatson','trip'].forEach(k => { const b = $(`btn-${k}`); if (b) b.classList.toggle('active', k === m); });
   const sel = document.getElementById('mode-select'); if (sel) sel.value = m;
   if (m !== 'sakura') { const bf = $('bloom-filters'); if (bf) bf.style.display = 'none'; }
@@ -907,7 +928,7 @@ function avgDiffLabel(forecastIso, normalIso) {
 // ── SAKURA ──
 async function loadSakura() {
   $('sidebar-header').innerHTML = '<h2>Cherry Blossom Forecast</h2><p>48 cities &middot; 1,012 spots &middot; Click a city to see spots</p>';
-  $('sidebar-content').innerHTML = '<div class="loading">Loading...</div>';
+  $('sidebar-content').innerHTML = skeletonHtml();
   updateLegend('sakura');
 
   // Show bloom filters, reset to 'all'
@@ -947,7 +968,7 @@ async function loadSakura() {
 async function loadPrefSpots(prefCode, prefName) {
   pushUrlState({ mode: 'sakura', pref: prefCode });
   $('sidebar-header').innerHTML = `<h2>${prefName} Spots</h2><p>Loading...</p>`;
-  $('sidebar-content').innerHTML = '<div class="loading">Loading spots...</div>';
+  $('sidebar-content').innerHTML = skeletonHtml();
   const bf = $('bloom-filters'); if (bf) bf.style.display = 'none';
 
   try {
@@ -1035,7 +1056,7 @@ function flyToSpot(spot) {
 // ── KOYO ──
 async function loadKoyo() {
   $('sidebar-header').innerHTML = '<h2>Autumn Leaves Forecast</h2><p>687 spots across Japan</p>';
-  $('sidebar-content').innerHTML = '<div class="loading">Loading...</div>';
+  $('sidebar-content').innerHTML = skeletonHtml();
   updateLegend('koyo');
   clearMarkers();
 
@@ -1112,38 +1133,38 @@ async function loadKoyoSpots(prefCode, name) {
   }
 }
 
-// ── Find Best Dates ──
-async function findBestDates() {
-  const start = $('date-start')?.value;
-  const end = $('date-end')?.value;
-  if (!start || !end) { $('sidebar-content').innerHTML = '<div class="loading" style="color:var(--error)">Pick both a start and end date.</div>'; return; }
+// ── Trip date sync ──
+// When the start date changes and the end is now before it, push end forward
+// to start + 7 days. When the end date changes and it's before start, pull
+// start back to the same day (user is narrowing, not widening).
+function syncTripDates(changed) {
+  const startEl = $('trip-start');
+  const endEl   = $('trip-end');
+  if (!startEl || !endEl) return;
+  const startVal = startEl.value;
+  const endVal   = endEl.value;
+  if (!startVal && !endVal) return;
 
-  $('sidebar-header').innerHTML = `<h2>Best for ${start} to ${end}</h2><p>Searching...</p>`;
-  $('sidebar-content').innerHTML = '<div class="loading">Finding blooms...</div>';
+  const fmt = d => d.toISOString().slice(0, 10);
 
-  try {
-    const data = await api(`/api/sakura/best?start=${start}&end=${end}`);
-    if (!data.matches?.length) {
-      $('sidebar-header').innerHTML = `<h2>No blooms found</h2><p>${start} to ${end}</p>`;
-      $('sidebar-content').innerHTML = `<div class="loading">No cities in bloom during these dates.<br><br>Season: Okinawa Jan-Feb, Kyushu/Kansai late Mar, Kanto early Apr, Tohoku mid Apr, Hokkaido late Apr-May.</div>`;
-      return;
+  if (changed === 'start' && startVal) {
+    const start = new Date(startVal + 'T00:00:00');
+    if (!endVal || new Date(endVal + 'T00:00:00') < start) {
+      const newEnd = new Date(start);
+      newEnd.setDate(newEnd.getDate() + 7);
+      endEl.value = fmt(newEnd);
     }
+    // Keep end's min in sync so the browser date picker won't show dates before start
+    endEl.min = startVal;
+  }
 
-    $('sidebar-header').innerHTML = `<h2>${data.matches.length} cities in bloom</h2><p>${start} to ${end}</p>`;
-    let html = '';
-    for (const city of data.matches) {
-      const st = statusText(city.status);
-      html += `<div class="spot-item" onclick="handleSpotClick(${reg({action:'loadPrefSpots',prefCode:city.prefCode,prefName:city.prefName})})">
-        <h4>${city.cityName} <span style="font-weight:400;color:var(--gray-400)">${city.prefName}</span></h4>
-        <div class="sub">
-          <span class="badge ${st.cls}">${st.text}</span>
-          &nbsp; Full bloom: ${sakuraDateOk(city.fullBloom.forecast) ? fmtDate(city.fullBloom.forecast) : '—'}${city.fullBloom.observation ? ' → '+fmtDate(city.fullBloom.observation) : ''}
-        </div>
-      </div>`;
+  if (changed === 'end' && endVal) {
+    const end = new Date(endVal + 'T00:00:00');
+    if (!startVal || new Date(startVal + 'T00:00:00') > end) {
+      startEl.value = endVal; // snap start to same day as end
     }
-    $('sidebar-content').innerHTML = html;
-  } catch (e) {
-    $('sidebar-content').innerHTML = `<div class="loading" style="color:${C.error}">${e.message}</div>`;
+    // Keep start's max in sync
+    startEl.max = endVal;
   }
 }
 
@@ -1483,9 +1504,9 @@ function loadTripPlanner() {
     <div style="padding:16px 16px 12px">
       <div style="font-size:0.82rem;color:var(--gray-600);margin-bottom:5px">Travel dates</div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px">
-        <input type="date" id="trip-start" value="${fmt(today)}" style="flex:1;padding:7px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:0.85rem">
+        <input type="date" id="trip-start" value="${fmt(today)}" onchange="syncTripDates('start')" style="flex:1;padding:7px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:0.85rem">
         <span style="color:var(--gray-400);font-size:0.82rem">to</span>
-        <input type="date" id="trip-end" value="${fmt(nextWeek)}" style="flex:1;padding:7px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:0.85rem">
+        <input type="date" id="trip-end" value="${fmt(nextWeek)}" min="${fmt(today)}" onchange="syncTripDates('end')" style="flex:1;padding:7px 10px;border:1px solid var(--gray-200);border-radius:8px;font-size:0.85rem">
       </div>
       <div style="font-size:0.82rem;color:var(--gray-600);margin-bottom:7px">Where are you going? <span style="color:var(--gray-400);font-weight:400">(optional — leave blank for Japan-wide)</span></div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">${chips}</div>
@@ -1530,7 +1551,7 @@ async function searchTrip() {
   const noCities = resolved.length === 0;
   const radiusKm = parseInt($('trip-radius').value);
 
-  $('trip-results').innerHTML = '<div class="loading">Loading...</div>';
+  $('trip-results').innerHTML = skeletonHtml(3);
 
   try {
     const isSakuraSeason = SAKURA_MONTHS.includes(m);
@@ -1906,7 +1927,7 @@ async function findNearMe() {
     $('btn-nearme').textContent = 'Near Me';
 
     $('sidebar-header').innerHTML = `<h2>Spots Near You</h2><p>Within 30km of your location</p>`;
-    $('sidebar-content').innerHTML = '<div class="loading">Loading nearby spots...</div>';
+    $('sidebar-content').innerHTML = skeletonHtml();
     updateLegend('sakura');
 
     try {
