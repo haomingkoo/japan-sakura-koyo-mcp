@@ -734,7 +734,7 @@ function setFruitFilter(name) {
 }
 
 async function loadFruitPicking() {
-  $('sidebar-header').innerHTML = '<h2>Fruit Picking in Japan</h2><p>Loading...</p>';
+  $('sidebar-header').innerHTML = '<h2>Fruit Picking in Japan</h2><p>350+ farms across Japan</p>';
   clearMarkers();
   updateLegend('fruit');
 
@@ -967,7 +967,7 @@ async function loadSakura() {
 
 async function loadPrefSpots(prefCode, prefName) {
   pushUrlState({ mode: 'sakura', pref: prefCode });
-  $('sidebar-header').innerHTML = `<h2>${prefName} Spots</h2><p>Loading...</p>`;
+  $('sidebar-header').innerHTML = `<h2>${esc(prefName)} Spots</h2><p>Cherry blossom viewing spots</p>`;
   $('sidebar-content').innerHTML = skeletonHtml();
   const bf = $('bloom-filters'); if (bf) bf.style.display = 'none';
 
@@ -1094,7 +1094,7 @@ async function loadKoyo() {
 
 async function loadKoyoSpots(prefCode, name) {
   pushUrlState({ mode: 'koyo', pref: prefCode });
-  $('sidebar-header').innerHTML = `<h2>${name} Spots</h2><p>Loading...</p>`;
+  $('sidebar-header').innerHTML = `<h2>${esc(name)} Spots</h2><p>Autumn leaves viewing spots</p>`;
   try {
     const data = await api(`/api/koyo/spots?pref=${prefCode}`);
     clearMarkers();
@@ -1228,7 +1228,7 @@ let flowersCache = null;
 let flowersTypeFilter = 'all'; // 'all', 'wisteria', or 'hydrangea'
 
 async function loadFlowers() {
-  $('sidebar-header').innerHTML = '<h2>Seasonal Flowers</h2><p>Loading...</p>';
+  $('sidebar-header').innerHTML = '<h2>Seasonal Flowers</h2><p>80 curated spots across Japan</p>';
   clearMarkers();
   updateLegend('flowers');
 
@@ -2301,7 +2301,7 @@ let festivalsCache = null;
 let whatsOnMonth = new Date().getMonth() + 1;
 
 async function loadWhatsOn() {
-  $('sidebar-header').innerHTML = '<h2>What\'s On in Japan</h2><p>Loading...</p>';
+  $('sidebar-header').innerHTML = '<h2>What\'s On in Japan</h2><p>Festivals, fireworks & seasonal events</p>';
   clearMarkers();
   updateLegend('whatson');
 
