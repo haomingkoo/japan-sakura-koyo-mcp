@@ -26,7 +26,9 @@ export interface KoyoRegion {
 export interface KoyoCity {
   code: string;
   name: string;
+  nameEn: string;
   prefName: string;
+  prefNameEn: string;
   maple: {
     forecast: string | null;      // ISO date
     normalDiffClass: string;      // e.g. "平年より遅い" (later than normal)
@@ -86,6 +88,37 @@ const REGION_EN: Record<string, string> = {
   "九州地方": "Kyushu",
 };
 
+const CITY_EN: Record<string, string> = {
+  "札幌":"Sapporo","旭川":"Asahikawa","帯広":"Obihiro","釧路":"Kushiro",
+  "室蘭":"Muroran","函館":"Hakodate","仙台":"Sendai","青森":"Aomori",
+  "盛岡":"Morioka","秋田":"Akita","山形":"Yamagata","福島":"Fukushima",
+  "東京":"Tokyo","水戸":"Mito","宇都宮":"Utsunomiya","前橋":"Maebashi",
+  "熊谷":"Kumagaya","銚子":"Choshi","横浜":"Yokohama","甲府":"Kofu",
+  "長野":"Nagano","名古屋":"Nagoya","岐阜":"Gifu","静岡":"Shizuoka",
+  "津":"Tsu","新潟":"Niigata","富山":"Toyama","金沢":"Kanazawa",
+  "福井":"Fukui","大阪":"Osaka","彦根":"Hikone","京都":"Kyoto",
+  "神戸":"Kobe","奈良":"Nara","和歌山":"Wakayama","鳥取":"Tottori",
+  "松江":"Matsue","岡山":"Okayama","広島":"Hiroshima","下関":"Shimonoseki",
+  "徳島":"Tokushima","高松":"Takamatsu","松山":"Matsuyama","高知":"Kochi",
+  "福岡":"Fukuoka","佐賀":"Saga","長崎":"Nagasaki","熊本":"Kumamoto",
+  "大分":"Oita","宮崎":"Miyazaki","鹿児島":"Kagoshima",
+};
+
+const PREF_EN: Record<string, string> = {
+  "北海道":"Hokkaido","青森県":"Aomori","岩手県":"Iwate","宮城県":"Miyagi",
+  "秋田県":"Akita","山形県":"Yamagata","福島県":"Fukushima","茨城県":"Ibaraki",
+  "栃木県":"Tochigi","群馬県":"Gunma","埼玉県":"Saitama","千葉県":"Chiba",
+  "東京都":"Tokyo","神奈川県":"Kanagawa","新潟県":"Niigata","富山県":"Toyama",
+  "石川県":"Ishikawa","福井県":"Fukui","山梨県":"Yamanashi","長野県":"Nagano",
+  "岐阜県":"Gifu","静岡県":"Shizuoka","愛知県":"Aichi","三重県":"Mie",
+  "滋賀県":"Shiga","京都府":"Kyoto","大阪府":"Osaka","兵庫県":"Hyogo",
+  "奈良県":"Nara","和歌山県":"Wakayama","鳥取県":"Tottori","島根県":"Shimane",
+  "岡山県":"Okayama","広島県":"Hiroshima","山口県":"Yamaguchi","徳島県":"Tokushima",
+  "香川県":"Kagawa","愛媛県":"Ehime","高知県":"Kochi","福岡県":"Fukuoka",
+  "佐賀県":"Saga","長崎県":"Nagasaki","熊本県":"Kumamoto","大分県":"Oita",
+  "宮崎県":"Miyazaki","鹿児島県":"Kagoshima",
+};
+
 const NORMAL_DIFF_EN: Record<string, string> = {
   "平年並": "Normal",
   "平年より早い": "Earlier than normal",
@@ -141,7 +174,9 @@ export async function getKoyoForecast(): Promise<KoyoForecastResult> {
       cities: (r.list ?? []).map((c: any) => ({
         code: c.code ?? "",
         name: c.name ?? "",
+        nameEn: CITY_EN[c.name] ?? c.name ?? "",
         prefName: c.pref_name ?? "",
+        prefNameEn: PREF_EN[c.pref_name] ?? c.pref_name ?? "",
         maple: c.kaede_forecast_datetime ? {
           forecast: c.kaede_forecast_datetime,
           normalDiffClass: NORMAL_DIFF_EN[c.kaede_normal_diff_class] ?? c.kaede_normal_diff_class ?? "",

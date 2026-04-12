@@ -20,10 +20,10 @@ const C = {
   koyoEarly:   '#fdba74',
   // Kawazu cherry (early-blooming variant — distinct magenta)
   kawazu:      '#db2777',
-  // Fruit picking — amber for map markers (distinct from sakura-ended green)
-  farmAmber:   '#d97706',
-  farmAmberLight: '#fef3c7',
-  farmAmberBorder: '#fcd34d',
+  // Fruit picking — blue for map markers (distinct from all sakura lifecycle colors)
+  farmAmber:   '#2563eb',
+  farmAmberLight: '#eff6ff',
+  farmAmberBorder: '#93c5fd',
   // Nature greens (sidebar UI, badges, koyo early-stage) — = CSS --green
   green:       '#16a34a',
   greenDark:   '#166534',
@@ -1503,6 +1503,13 @@ function addTypedCities() {
   renderFreetextTags();
 }
 
+// Add a koyo city to the trip planner and re-run
+function selectKoyoCityForTrip(cityName) {
+  const input = $('city-freetext');
+  if (input) { input.value = cityName; addTypedCities(); }
+  searchTrip();
+}
+
 function haversineKm(lat1,lon1,lat2,lon2) {
   const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
@@ -1596,6 +1603,12 @@ async function searchTrip() {
 
     let bestCities = [];
     if (isSakuraSeason) fetches.push(api(`/api/sakura/best?start=${startVal}&end=${endVal}`).then(d => { bestCities = d.matches || []; }).catch(() => {}));
+
+    // Koyo forecast for no-city trip view (inline city list)
+    let tripKoyoForecast = null;
+    if (isKoyoSeason && noCities) {
+      fetches.push(api('/api/koyo/forecast').then(d => { tripKoyoForecast = d; }).catch(() => {}));
+    }
 
     // Koyo pref codes for selected cities
     let koyoData = null;
@@ -1708,7 +1721,29 @@ async function searchTrip() {
         html += `<div style="padding:8px 16px;font-size:0.82rem;color:var(--gray-600)">Pick cities above to see nearby farms, or explore the map.</div>`;
       }
       if (isKoyoSeason) {
-        html += `<div style="margin:10px 16px;padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:0.82rem;color:#92400e">🍂 Select cities to see autumn leaves spots, or switch to the <b>Autumn Leaves</b> tab for a full forecast map.</div>`;
+        const allKoyoCities = (tripKoyoForecast?.regions || []).flatMap(r => r.cities || []);
+        const peakStart = new Date(startVal); peakStart.setDate(peakStart.getDate() - 7);
+        const peakEnd = new Date(endVal); peakEnd.setDate(peakEnd.getDate() + 7);
+        const peakCities = allKoyoCities.filter(c => {
+          const d = new Date(c.maple?.forecast || c.ginkgo?.forecast || '');
+          return !isNaN(d.getTime()) && d >= peakStart && d <= peakEnd;
+        });
+        html += `<div style="padding:10px 16px;background:#fff7ed;font-weight:600;font-size:0.85rem;color:#92400e;border-top:1px solid var(--gray-200);border-bottom:1px solid #fed7aa">🍂 Autumn Leaves — peak cities for your dates</div>`;
+        if (peakCities.length) {
+          peakCities.slice(0, 10).forEach(c => {
+            const name = c.nameEn || c.name;
+            const pref = c.prefNameEn || c.prefName;
+            const maple = c.maple?.forecast ? fmtDate(c.maple.forecast) : null;
+            const ginkgo = c.ginkgo?.forecast ? fmtDate(c.ginkgo.forecast) : null;
+            const diff = c.maple?.normalDiffClass || c.ginkgo?.normalDiffClass || '';
+            html += `<div class="spot-item" onclick="selectKoyoCityForTrip('${esc(name)}')">
+              <h4>${esc(name)} <span style="font-weight:400;color:var(--gray-400)">${esc(pref)}</span></h4>
+              <div class="sub">${maple ? `Maple: ${maple}` : ''}${ginkgo ? ` · Ginkgo: ${ginkgo}` : ''}${diff ? ` · ${diff}` : ''}</div>
+            </div>`;
+          });
+        } else if (allKoyoCities.length) {
+          html += `<div style="padding:10px 16px;font-size:0.82rem;color:var(--gray-400)">No cities at peak during your dates. Adjust your window or explore the full Autumn Leaves forecast.</div>`;
+        }
       }
       $('trip-results').innerHTML = html;
       return;
@@ -1960,7 +1995,7 @@ async function searchTrip() {
         });
         if (nearbyKoyo.length > 12) html += `<div class="sub" style="padding:8px 16px;color:var(--gray-400)">+ ${nearbyKoyo.length - 12} more on map</div>`;
       } else {
-        html += `<div style="padding:12px 16px;font-size:0.82rem;color:var(--gray-400)">No koyo spots in database for this area. Try the Autumn Leaves tab for a full Japan map.</div>`;
+        html += `<div style="padding:12px 16px;font-size:0.82rem;color:var(--gray-400)">No autumn leaves spots in database for this area. Try a nearby city.</div>`;
       }
     }
 
