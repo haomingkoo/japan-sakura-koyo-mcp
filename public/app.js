@@ -2690,14 +2690,23 @@ function detectSeasonMode() {
 // ── Init ──
 // Read URL state on load
 (function() {
-  const p = new URLSearchParams(location.search);
-  const m = p.get('mode');
-  if (m && ['sakura','koyo','fruit','flowers','whatson','trip'].includes(m)) {
-    initMap(); setMode(m);
-    const pref = p.get('pref');
-    if (pref && m === 'sakura') loadPrefSpots(pref, pref);
-    if (pref && m === 'koyo') loadKoyoSpots(pref, pref);
-    return;
+  try {
+    if (typeof L === 'undefined') throw new Error('Leaflet failed to load from CDN (unpkg.com). Check network/ad-blocker.');
+    const p = new URLSearchParams(location.search);
+    const m = p.get('mode');
+    if (m && ['sakura','koyo','fruit','flowers','whatson','trip'].includes(m)) {
+      initMap(); setMode(m);
+      const pref = p.get('pref');
+      if (pref && m === 'sakura') loadPrefSpots(pref, pref);
+      if (pref && m === 'koyo') loadKoyoSpots(pref, pref);
+      return;
+    }
+    initMap(); setMode(detectSeasonMode());
+  } catch (e) {
+    const el = document.getElementById('sidebar-content');
+    if (el) el.innerHTML = '<div style="padding:16px;color:#dc2626;font-size:14px"><b>Error:</b> ' + e.message + '</div>';
+    const hdr = document.getElementById('sidebar-header');
+    if (hdr) hdr.innerHTML = '<h2 style="color:#dc2626">Failed to load</h2><p>See error below</p>';
+    console.error('Init error:', e);
   }
-  initMap(); setMode(detectSeasonMode());
 })();
