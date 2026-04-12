@@ -18,6 +18,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; c
   flex-shrink: 0; gap: 12px; flex-wrap: wrap;
 }
 .top-bar h1 { font-size: 1.15rem; font-weight: 700; white-space: nowrap; }
+.brand { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-by { font-size: 0.68rem; color: var(--gray-400); }
+.brand-by a { color: var(--gray-400); text-decoration: none; }
+.brand-by a:hover { color: var(--gray-600); text-decoration: underline; }
 .main { display: flex; flex: 1; overflow: hidden; }
 .map-container { flex: 1; position: relative; }
 #map { width: 100%; height: 100%; }

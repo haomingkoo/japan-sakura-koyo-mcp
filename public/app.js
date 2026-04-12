@@ -41,6 +41,7 @@ const C = {
 let mode = 'sakura';
 let sakuraData = null;
 let allSpotsData = null;
+let allKoyoSpotsData = null;
 let mapInstance = null;
 let markers = [];
 let clusterGroup = null;
@@ -1075,10 +1076,12 @@ function flyToSpot(spot) {
 
 // ── KOYO ──
 async function loadKoyo() {
-  $('sidebar-header').innerHTML = '<h2>Autumn Leaves Forecast</h2><p>687 spots across Japan</p>';
-  $('sidebar-content').innerHTML = skeletonHtml();
-  updateLegend('koyo');
+  $(‘sidebar-header’).innerHTML = ‘<h2>Autumn Leaves Forecast</h2><p>687 spots across Japan · Click a city to zoom in</p>’;
+  $(‘sidebar-content’).innerHTML = skeletonHtml();
+  updateLegend(‘koyo’);
   clearMarkers();
+  setMapPlaceholder(null);
+  loadAllKoyoSpotsOnMap();
 
   // Off-season banner (koyo season = roughly Sep–Nov, forecasts released ~Aug)
   const month = new Date().getMonth() + 1; // 1–12
@@ -1089,13 +1092,7 @@ async function loadKoyo() {
         JMA releases forecasts in August — dates shown below are from last season and may not reflect 2026 conditions.
         Check back in August for updated forecasts.
       </div>`
-    : '';
-  setMapPlaceholder({
-    title: 'Choose a city to see autumn leaves spots',
-    body: isKoyoSeason
-      ? 'This overview shows timing by city. Click any city in the sidebar to place the exact viewing spots on the map.'
-      : 'This overview shows last season’s timing by city. Click any city in the sidebar to place the exact viewing spots on the map.'
-  });
+    : ‘’;
 
   try {
     const data = await api('/api/koyo/forecast');
@@ -2376,6 +2373,57 @@ function globalSpotSearch(q) {
     bounds.push([spot.lat, spot.lon]);
   }
   if (bounds.length) mapInstance.fitBounds(bounds, { padding: [30, 30] });
+}
+
+// ── KOYO ALL-SPOTS MAP ──
+async function loadAllKoyoSpotsOnMap() {
+  try {
+    if (!allKoyoSpotsData) {
+      allKoyoSpotsData = sessionGet('allKoyoSpots');
+      if (!allKoyoSpotsData) {
+        allKoyoSpotsData = await api('/api/koyo/all-spots');
+        sessionSet('allKoyoSpots', allKoyoSpotsData);
+      }
+    }
+
+    clusterGroup = L.markerClusterGroup({
+      maxClusterRadius: 40,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      iconCreateFunction: function(cluster) {
+        const children = cluster.getAllChildMarkers();
+        let peak = 0, turning = 0;
+        children.forEach(m => {
+          if (m.options.koyoStatus?.includes('Peak')) peak++;
+          else if (m.options.koyoStatus?.includes('Turning')) turning++;
+        });
+        const n = children.length;
+        const color = peak > n * 0.3 ? C.koyoPeak : turning > n * 0.3 ? C.koyoTurn : C.dormant;
+        const textColor = color === C.dormant ? '#333' : 'white';
+        const size = Math.min(38 + n * 0.4, 58);
+        return L.divIcon({
+          html: `<div style="background:${color};color:${textColor};width:${size}px;height:${size}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2)">${n}</div>`,
+          className: '',
+          iconSize: [size, size],
+        });
+      }
+    });
+
+    for (const spot of allKoyoSpotsData.spots) {
+      if (!spot.lat || !spot.lon) continue;
+      const color = spot.status?.includes('Peak') ? C.koyoPeak : spot.status?.includes('Turning') ? C.koyoTurn : C.dormant;
+      const marker = L.circleMarker([spot.lat, spot.lon], {
+        radius: 6, fillColor: color, color: 'white', weight: 1.5, fillOpacity: 0.9,
+        koyoStatus: spot.status,
+      });
+      marker.bindPopup(`<b>${spot.name}</b><br>${spot.status || '—'}<br>Peak: ${fmtDate(spot.bestPeak)}<br><a href="https://www.google.com/maps/search/?api=1&query=${spot.lat},${spot.lon}" target="_blank" style="color:${C.koyoPeak}">Google Maps →</a>`);
+      clusterGroup.addLayer(marker);
+    }
+
+    mapInstance.addLayer(clusterGroup);
+  } catch (e) {
+    console.error('loadAllKoyoSpotsOnMap', e);
+  }
 }
 
 // ── WHAT'S ON ──
