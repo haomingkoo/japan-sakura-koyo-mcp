@@ -1135,6 +1135,7 @@ async function startHttpServer() {
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "SAMEORIGIN");
     res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https:; frame-ancestors 'none'");
 
     // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -1202,8 +1203,19 @@ async function startHttpServer() {
 
       // New connection without session ID.
       // Read body to check if it's an initialize request or not.
+      // Limit body size to 1 MB to prevent memory-exhaustion attacks.
+      const MAX_BODY_BYTES = 1_048_576;
       const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk as Buffer);
+      let bodyBytes = 0;
+      for await (const chunk of req) {
+        bodyBytes += (chunk as Buffer).length;
+        if (bodyBytes > MAX_BODY_BYTES) {
+          res.writeHead(413, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Request body too large." }));
+          return;
+        }
+        chunks.push(chunk as Buffer);
+      }
       const bodyStr = Buffer.concat(chunks).toString();
       let parsedBody: any;
       try { parsedBody = JSON.parse(bodyStr); } catch { parsedBody = null; }
