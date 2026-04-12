@@ -6,7 +6,7 @@
     "url": "https://github.com/haomingkoo/japan-seasons-mcp",
     "source": "github"
   },
-  "version": "0.4.0",
+  "version": "0.4.1",
   "remotes": [
     {
       "type": "streamable-http",
@@ -39,7 +39,7 @@
     {
       "registryType": "npm",
       "identifier": "japan-seasons-mcp",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "environmentVariables": [
         {
           "name": "JAPAN_SEASONS_DATE_STYLE",
@@ -69,7 +69,7 @@
     {
       "registryType": "npm",
       "identifier": "japan-seasons-mcp",
-      "version": "0.4.0",
+      "version": "0.4.1",
       "environmentVariables": [
         {
           "name": "PORT",
