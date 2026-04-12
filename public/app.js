@@ -1106,8 +1106,8 @@ async function loadKoyo() {
         const mapleDate = city.maple ? fmtDate(city.maple.forecast) : '—';
         const ginkgoDate = city.ginkgo ? fmtDate(city.ginkgo.forecast) : '—';
         const prefCode = city.code.slice(0, 2);
-        html += `<div class="spot-item" onclick="handleSpotClick(${reg({action:'loadKoyoSpots',prefCode:prefCode,name:city.prefName||city.name})})">
-          <h4>${city.name} <span style="font-weight:400;color:var(--gray-400)">${city.prefName || ''}</span></h4>
+        html += `<div class="spot-item" onclick="handleSpotClick(${reg({action:'loadKoyoSpots',prefCode:prefCode,name:city.prefNameEn||city.prefName||city.nameEn||city.name})})">
+          <h4>${city.nameEn||city.name} <span style="font-weight:400;color:var(--gray-400)">${city.prefNameEn||city.prefName||''}</span></h4>
           <div class="sub">Maple: ${mapleDate}${city.maple ? ' · '+city.maple.normalDiffClass : ''} &nbsp; Ginkgo: ${ginkgoDate}</div>
         </div>`;
       }
