@@ -45,6 +45,6 @@ export const FRUITS = [
   { name: "Chestnut",        ja: "栗",       emoji: "🌰", months: [9,10],          peak: [9,10],     regions: ["Ibaraki","Kumamoto","Ehime"],                    note: "Ibaraki Kuri is Japan's most famous variety" },
   { name: "Persimmon",       ja: "柿",       emoji: "🍊", months: [10,11,12],      peak: [10,11],    regions: ["Nara","Wakayama","Fukuoka"],                     note: "Hachiya and Fuyu varieties dominate" },
   { name: "Mandarin Orange", ja: "みかん",   emoji: "🍊", months: [10,11,12,1,2],  peak: [11,12],    regions: ["Ehime","Wakayama","Shizuoka"],                   note: "Ehime is Japan's top mikan prefecture" },
-  { name: "Strawberry",      ja: "いちご",   emoji: "🍓", months: [11,12,1,2,3,4], peak: [2,3],      regions: ["Fukuoka","Saga","Kumamoto"],                     note: "Amaou variety from Fukuoka — most premium" },
+  { name: "Amaou Strawberry", ja: "あまおう", emoji: "🍓", months: [11,12,1,2,3,4], peak: [2,3],      regions: ["Fukuoka","Saga","Kumamoto"],                     note: "Amaou variety from Fukuoka — most premium" },
   { name: "Kiwi",            ja: "キウイ",   emoji: "🥝", months: [11,12],         peak: [11,12],    regions: ["Ehime","Kanagawa","Fukuoka"],                    note: "Harvested Nov–Dec; stored and sold through winter" },
 ];

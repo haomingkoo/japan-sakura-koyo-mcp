@@ -244,8 +244,8 @@ export async function handleApiRequest(
       if (latStr && lonStr) {
         const latF = parseFloat(latStr);
         const lonF = parseFloat(lonStr);
-        if (isNaN(latF) || isNaN(lonF)) { error(res, "Invalid coordinates"); return true; }
-        const key = `${latF.toFixed(2)},${lonF.toFixed(2)}`;
+        if (isNaN(latF) || isNaN(lonF) || latF < 20 || latF > 46 || lonF < 122 || lonF > 154) { error(res, "Invalid coordinates"); return true; }
+        const key = `${latF.toFixed(3)},${lonF.toFixed(3)}`;
         const cached = spotWeatherCache.get(key);
         if (cached && Date.now() - cached.ts < 3_600_000) {
           json(res, cached.data, 200, 1800); // 30-min CDN cache on top of server cache
