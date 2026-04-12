@@ -20,7 +20,11 @@ const C = {
   koyoEarly:   '#fdba74',
   // Kawazu cherry (early-blooming variant — distinct magenta)
   kawazu:      '#db2777',
-  // Fruit picking / nature greens — = CSS --green
+  // Fruit picking — amber for map markers (distinct from sakura-ended green)
+  farmAmber:   '#d97706',
+  farmAmberLight: '#fef3c7',
+  farmAmberBorder: '#fcd34d',
+  // Nature greens (sidebar UI, badges, koyo early-stage) — = CSS --green
   green:       '#16a34a',
   greenDark:   '#166534',
   greenMid:    '#15803d',
@@ -1240,7 +1244,7 @@ function updateLegend(type) {
       <div class="legend-row"><span style="font-size:14px;color:#e11d48">🌸</span> Plum (Jan–Mar)</div>
       <div class="legend-row"><span style="font-size:14px">💜</span> Wisteria</div>
       <div class="legend-row"><span style="font-size:14px">💙</span> Hydrangea</div>
-      <div class="legend-row"><div class="legend-dot" style="background:${C.green}"></div> Fruit farm</div>`;
+      <div class="legend-row"><div class="legend-dot" style="background:${C.farmAmber}"></div> Fruit farm</div>`;
   } else {
     el.style.display = 'none';
     return;
@@ -1661,14 +1665,14 @@ async function searchTrip() {
           iconCreateFunction: cluster => {
             const n = cluster.getChildCount();
             const sz = Math.min(32 + n * 0.2, 48);
-            return L.divIcon({ html: `<div style="background:${C.green};color:white;width:${sz}px;height:${sz}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2)">${n}</div>`, className: '', iconSize: [sz, sz] });
+            return L.divIcon({ html: `<div style="background:${C.farmAmber};color:white;width:${sz}px;height:${sz}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.2)">${n}</div>`, className: '', iconSize: [sz, sz] });
           }
         });
         for (const farm of seasonFarms) {
           const emoji = FRUITS.find(f => farm.fruits?.includes(f.name) && f.months.includes(m))?.emoji || '🌿';
           const srcLabel = farm.source === 'jalan' ? 'Jalan' : 'Navitime';
           const mk = L.marker([farm.lat, farm.lon], {
-            icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.green};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emoji}</div>`, className: '', iconSize: [22, 22], iconAnchor: [11, 11] })
+            icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.farmAmber};border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emoji}</div>`, className: '', iconSize: [22, 22], iconAnchor: [11, 11] })
           });
           mk.bindPopup(farmPopupHtml(farm, m));
           clusterGroup.addLayer(mk);
@@ -1857,7 +1861,7 @@ async function searchTrip() {
       const emoji = FRUITS.find(f => farm.fruits?.includes(f.name) && f.months.includes(m))?.emoji || '🌿';
       const srcLabel = farm.source === 'jalan' ? 'Jalan' : 'Navitime';
       const mk = L.marker([farm.lat, farm.lon], {
-        icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.green};border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emoji}</div>`, className: '', iconSize: [24, 24], iconAnchor: [12, 12] })
+        icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.farmAmber};border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${emoji}</div>`, className: '', iconSize: [24, 24], iconAnchor: [12, 12] })
       });
       mk.bindPopup(farmPopupHtml(farm, m));
       mk.addTo(mapInstance);
@@ -2415,13 +2419,13 @@ function renderWhatsOn(m) {
       iconCreateFunction: cluster => {
         const n = cluster.getChildCount();
         const sz = Math.min(30 + n * 0.3, 46);
-        return L.divIcon({ html: `<div style="background:${C.green};color:white;width:${sz}px;height:${sz}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${n}</div>`, className: '', iconSize: [sz, sz] });
+        return L.divIcon({ html: `<div style="background:${C.farmAmber};color:white;width:${sz}px;height:${sz}px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.2)">${n}</div>`, className: '', iconSize: [sz, sz] });
       }
     });
     for (const farm of farms) {
       const emoji = FRUITS.find(f => farm.fruits?.includes(f.name) && f.months.includes(m))?.emoji || '🌿';
       const mk = L.marker([farm.lat, farm.lon], {
-        icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.green};border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,0.15)">${emoji}</div>`, className: '', iconSize: [20, 20], iconAnchor: [10, 10] })
+        icon: L.divIcon({ html: `<div style="background:white;border:2px solid ${C.farmAmber};border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 1px 3px rgba(0,0,0,0.15)">${emoji}</div>`, className: '', iconSize: [20, 20], iconAnchor: [10, 10] })
       });
       mk.bindPopup(farmPopupHtml(farm, m));
       clusterGroup.addLayer(mk);
