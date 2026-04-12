@@ -1,6 +1,7 @@
 import { logger } from "./logger.js";
+import { VERSION } from "./version.js";
 
-const USER_AGENT = "japan-seasons-mcp/0.4.8";
+const USER_AGENT = `japan-seasons-mcp/${VERSION}`;
 const FETCH_TIMEOUT_MS = 15_000; // 15 second timeout
 const MAX_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 500; // exponential backoff: 500ms → 1s → 2s

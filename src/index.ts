@@ -8,9 +8,8 @@ import { gzipSync } from "zlib";
 import { readFileSync, existsSync } from "fs";
 import { join, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
-const SERVER_VERSION: string = (JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "../package.json"), "utf-8")) as { version: string }).version;
-
 import { logger } from "./lib/logger.js";
+import { VERSION as SERVER_VERSION } from "./lib/version.js";
 import { handleApiRequest, warmSpotsCache } from "./api.js";
 import {
   getSakuraForecast,
