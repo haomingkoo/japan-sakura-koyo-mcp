@@ -96,12 +96,16 @@ function formatKoyoOutputDate(iso: string | null, outputConfig: OutputConfig): s
   return outputConfig.dateStyle === "iso" ? formatIsoDate(iso) : formatKoyoDate(iso);
 }
 
+function mapsUrl(lat: unknown, lon: unknown): string {
+  return `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+}
+
 function coordinateLine(lat: unknown, lon: unknown, outputConfig: OutputConfig): string {
-  return outputConfig.includeCoordinates ? `- 📍 ${lat}, ${lon}\n` : "";
+  return outputConfig.includeCoordinates ? `- 📍 ${lat}, ${lon} · [Google Maps](${mapsUrl(lat, lon)})\n` : "";
 }
 
 function gpsLine(lat: unknown, lon: unknown, outputConfig: OutputConfig): string {
-  return outputConfig.includeCoordinates ? `- **GPS:** ${lat}, ${lon}\n` : "";
+  return outputConfig.includeCoordinates ? `- **GPS:** ${lat}, ${lon} · [Google Maps](${mapsUrl(lat, lon)})\n` : "";
 }
 
 // Returns how many days ago full bloom was forecast/observed, or null if not yet reached.
