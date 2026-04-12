@@ -170,6 +170,25 @@ function getOutputConfigFromEnv(env: NodeJS.ProcessEnv = process.env): OutputCon
   });
 }
 
+// ─── Pre-load static frontend files into memory at startup ──────────────────
+// Avoids per-request disk I/O and server-side gzip (Railway proxy handles compression).
+const STATIC_FILE_MAP: Record<string, { file: string; mime: string }> = {
+  "/":         { file: "index.html", mime: "text/html; charset=utf-8" },
+  "/app.css":  { file: "app.css",    mime: "text/css; charset=utf-8" },
+  "/app.js":   { file: "app.js",     mime: "application/javascript; charset=utf-8" },
+};
+const STATIC_FILES: Record<string, { body: Buffer; mime: string }> = {};
+{
+  const __staticDir = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
+  for (const [route, entry] of Object.entries(STATIC_FILE_MAP)) {
+    try {
+      STATIC_FILES[route] = { body: readFileSync(join(__staticDir, entry.file)), mime: entry.mime };
+    } catch {
+      logger.warn(`Static file not found: ${entry.file}`);
+    }
+  }
+}
+
 const SERVER_INSTRUCTIONS = `You are connected to Japan in Seasons, a read-only MCP server for live Japan seasonal travel data.
 
 Use this server when the user needs current timing or locations for cherry blossom, autumn leaves, flowers, festivals, fruit picking, or short-range weather in Japan. Do not use it for generic travel planning, hotels, flights, trains, visas, or restaurant recommendations.
@@ -1242,40 +1261,17 @@ async function startHttpServer() {
     }
 
     // Serve frontend static files
-    const staticFiles: Record<string, { file: string; mime: string }> = {
-      "/":         { file: "index.html", mime: "text/html; charset=utf-8" },
-      "/app.css":  { file: "app.css",    mime: "text/css; charset=utf-8" },
-      "/app.js":   { file: "app.js",     mime: "application/javascript; charset=utf-8" },
-    };
-    const staticEntry = staticFiles[url.pathname];
+    // Files are read once at startup and served from memory.
+    // No server-side gzip — let the reverse proxy (Railway) handle compression
+    // to avoid double-encoding issues.
+    const staticEntry = STATIC_FILES[url.pathname];
     if (staticEntry) {
-      try {
-        const __dirname = dirname(fileURLToPath(import.meta.url));
-        const filePath = join(__dirname, "..", "public", staticEntry.file);
-        const content = readFileSync(filePath);
-        const acceptsGzip = (req.headers["accept-encoding"] as string || "").includes("gzip");
-        if (acceptsGzip) {
-          const compressed = gzipSync(content);
-          res.writeHead(200, {
-            "Content-Type": staticEntry.mime,
-            "Cache-Control": "public, max-age=300",
-            "Content-Encoding": "gzip",
-            "Vary": "Accept-Encoding",
-          });
-          res.end(compressed);
-        } else {
-          res.writeHead(200, { "Content-Type": staticEntry.mime, "Cache-Control": "public, max-age=300" });
-          res.end(content);
-        }
-      } catch {
-        if (url.pathname === "/") {
-          res.writeHead(200, { "Content-Type": "text/html" });
-          res.end(`<!DOCTYPE html><html><body><h1>japan-seasons-mcp</h1>
-<p>MCP endpoint: <code>https://${req.headers.host}/mcp</code></p></body></html>`);
-        } else {
-          res.writeHead(404).end("Not found");
-        }
-      }
+      res.writeHead(200, {
+        "Content-Type": staticEntry.mime,
+        "Cache-Control": "public, max-age=300",
+        "Vary": "Accept-Encoding",
+      });
+      res.end(staticEntry.body);
       return;
     }
 

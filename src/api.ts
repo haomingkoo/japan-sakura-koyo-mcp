@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from "http";
-import { gzipSync } from "zlib";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import {
@@ -33,16 +32,15 @@ const STATIC = {
 // ── Server-side caches — shared across users, 1-hour TTL ──
 // All-spots: 47 upstream requests → cache aggressively so only first user pays the cost.
 const ALL_SPOTS_CACHE_TTL = 3_600_000; // 1 hour
-const allSpotsCache = new Map<string, { gzipped: Buffer; ts: number }>();
+const allSpotsCache = new Map<string, { json: string; ts: number }>();
 
 const spotWeatherCache = new Map<string, { data: unknown; ts: number }>();
 
 // ── Response helpers ──
 function json(res: ServerResponse, data: unknown, status = 200, maxAge = 0, immutable = false) {
-  const body = gzipSync(JSON.stringify(data));
+  const body = JSON.stringify(data);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "Content-Encoding": "gzip",
     "Vary": "Accept-Encoding",
   };
   if (maxAge > 0) {
@@ -134,11 +132,10 @@ export async function handleApiRequest(
       if (cached && Date.now() - cached.ts < ALL_SPOTS_CACHE_TTL) {
         res.writeHead(200, {
           "Content-Type": "application/json",
-          "Content-Encoding": "gzip",
           "Vary": "Accept-Encoding",
           "Cache-Control": "public, max-age=3600, stale-while-revalidate=60",
         });
-        res.end(cached.gzipped);
+        res.end(cached.json);
         return true;
       }
       const allSpots: unknown[] = [];
@@ -150,15 +147,14 @@ export async function handleApiRequest(
         } else if (r.status === "rejected") logger.warn(`all-spots sakura: ${r.reason}`);
       }
       const data = { totalSpots: allSpots.length, spots: allSpots };
-      const gzipped = gzipSync(JSON.stringify(data));
-      allSpotsCache.set("sakura", { gzipped, ts: Date.now() });
+      const jsonStr = JSON.stringify(data);
+      allSpotsCache.set("sakura", { json: jsonStr, ts: Date.now() });
       res.writeHead(200, {
         "Content-Type": "application/json",
-        "Content-Encoding": "gzip",
         "Vary": "Accept-Encoding",
         "Cache-Control": "public, max-age=3600, stale-while-revalidate=60",
       });
-      res.end(gzipped);
+      res.end(jsonStr);
       return true;
     }
 
@@ -194,11 +190,10 @@ export async function handleApiRequest(
       if (cached && Date.now() - cached.ts < ALL_SPOTS_CACHE_TTL) {
         res.writeHead(200, {
           "Content-Type": "application/json",
-          "Content-Encoding": "gzip",
           "Vary": "Accept-Encoding",
           "Cache-Control": "public, max-age=3600, stale-while-revalidate=60",
         });
-        res.end(cached.gzipped);
+        res.end(cached.json);
         return true;
       }
       const allSpots: unknown[] = [];
@@ -209,15 +204,14 @@ export async function handleApiRequest(
         else if (r.status === "rejected") logger.warn(`all-spots koyo: ${r.reason}`);
       }
       const data = { totalSpots: allSpots.length, spots: allSpots };
-      const gzipped = gzipSync(JSON.stringify(data));
-      allSpotsCache.set("koyo", { gzipped, ts: Date.now() });
+      const jsonStr = JSON.stringify(data);
+      allSpotsCache.set("koyo", { json: jsonStr, ts: Date.now() });
       res.writeHead(200, {
         "Content-Type": "application/json",
-        "Content-Encoding": "gzip",
         "Vary": "Accept-Encoding",
         "Cache-Control": "public, max-age=3600, stale-while-revalidate=60",
       });
-      res.end(gzipped);
+      res.end(jsonStr);
       return true;
     }
 
@@ -299,7 +293,7 @@ export async function warmSpotsCache(): Promise<void> {
     }
   }
   const sakuraData = { totalSpots: sakuraSpots.length, spots: sakuraSpots };
-  allSpotsCache.set("sakura", { gzipped: gzipSync(JSON.stringify(sakuraData)), ts: Date.now() });
+  allSpotsCache.set("sakura", { json: JSON.stringify(sakuraData), ts: Date.now() });
   logger.info(`Cache warm: sakura all-spots ${sakuraSpots.length} spots`);
 
   const koyoResults = await pMapSettled(prefCodes, (code) => getKoyoSpots(code), 5);
@@ -308,6 +302,6 @@ export async function warmSpotsCache(): Promise<void> {
     if (r.status === "fulfilled" && r.value.spots) koyoSpots.push(...r.value.spots);
   }
   const koyoData = { totalSpots: koyoSpots.length, spots: koyoSpots };
-  allSpotsCache.set("koyo", { gzipped: gzipSync(JSON.stringify(koyoData)), ts: Date.now() });
+  allSpotsCache.set("koyo", { json: JSON.stringify(koyoData), ts: Date.now() });
   logger.info(`Cache warm: koyo all-spots ${koyoSpots.length} spots`);
 }
