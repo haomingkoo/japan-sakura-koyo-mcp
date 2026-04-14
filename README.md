@@ -23,15 +23,15 @@
 
 | Cherry blossom map | Spot detail & weather |
 |---|---|
-| <img src="screenshots/08-sakura-zoomed.png" width="420"> | <img src="screenshots/02-sakura-popup.png" width="420"> |
+| <img src="https://raw.githubusercontent.com/haomingkoo/japan-seasons-mcp/main/screenshots/08-sakura-zoomed.png" width="420"> | <img src="https://raw.githubusercontent.com/haomingkoo/japan-seasons-mcp/main/screenshots/02-sakura-popup.png" width="420"> |
 
 | Fruit picking | What's On in Japan |
 |---|---|
-| <img src="screenshots/03-fruit-picking.png" width="420"> | <img src="screenshots/05-whatson.png" width="420"> |
+| <img src="https://raw.githubusercontent.com/haomingkoo/japan-seasons-mcp/main/screenshots/03-fruit-picking.png" width="420"> | <img src="https://raw.githubusercontent.com/haomingkoo/japan-seasons-mcp/main/screenshots/05-whatson.png" width="420"> |
 
 | Flowers in season | Mobile |
 |---|---|
-| <img src="screenshots/04-flowers.png" width="420"> | <img src="screenshots/07-mobile.png" width="420"> |
+| <img src="https://raw.githubusercontent.com/haomingkoo/japan-seasons-mcp/main/screenshots/04-flowers.png" width="420"> | <img src="https://raw.githubusercontent.com/haomingkoo/japan-seasons-mcp/main/screenshots/07-mobile.png" width="420"> |
 
 ---
 

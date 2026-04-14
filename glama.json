@@ -1,3 +1,6 @@
 {
-  "$schema": "https://glama.ai/mcp/glama.schema.json"
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "maintainers": [
+    "haomingkoo"
+  ]
 }
