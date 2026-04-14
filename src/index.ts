@@ -274,7 +274,7 @@ Use the japan-seasons-mcp tools based on the travel month:
 ## Key facts
 - Somei-Yoshino (standard cherry) blooms Mar-May, moving north Okinawa → Hokkaido
 - Kawazu-zakura (deep pink) blooms Jan-Feb in Izu Peninsula
-- Sakura lasts 7-10 days; rain accelerates petal fall — check weather.forecast
+- Sakura lasts 7-10 days; rain accelerates petal fall — check weather_forecast
 - Wisteria is admission-required at top spots (Ashikaga, Kawachi) — book ahead
 - Hydrangea peaks June in Kamakura; visit weekdays or early morning to avoid crowds`,
         },
@@ -307,7 +307,7 @@ Use the japan-seasons-mcp tools based on the travel month:
     "sakura_forecast",
     {
       title: "Cherry Blossom Forecast",
-      description: "Use this when the user asks about cherry blossom timing, peak bloom, whether sakura has started, or how cities compare across Japan. Returns Japan Meteorological Corporation forecast bloom dates, full-bloom dates, observed dates when available, historical averages, and status for 48 observation cities. Do not use this for specific parks or temples; call sakura.spots next for prefecture-level viewing spots.",
+      description: "Use this when the user asks about cherry blossom timing, peak bloom, whether sakura has started, or how cities compare across Japan. Returns Japan Meteorological Corporation forecast bloom dates, full-bloom dates, observed dates when available, historical averages, and status for 48 observation cities. Do not use this for specific parks or temples; call sakura_spots next for prefecture-level viewing spots.",
       inputSchema: {
         city: z.string().optional().describe(
           "Optional city, prefecture, or region filter such as 'Tokyo', 'Kyoto', 'Hokkaido', or 'Tohoku'. Partial case-insensitive matches are supported across city, prefecture, and region names. Omit to return all observation cities."
@@ -437,9 +437,9 @@ Use the japan-seasons-mcp tools based on the travel month:
         const forecast = await getSakuraForecast();
         const matches = findBestRegions(forecast, startDate, endDate);
         if (matches.length === 0) {
-          return { content: [{ type: "text", text: `No cities in bloom during ${start_date} to ${end_date}.\n\nSeason: Okinawa Jan-Feb, Kyushu/Kansai late Mar, Kanto early Apr, Tohoku mid Apr, Hokkaido late Apr-May.\nTry kawazu.forecast for Jan-Feb early blooms.` }] };
+          return { content: [{ type: "text", text: `No cities in bloom during ${start_date} to ${end_date}.\n\nSeason: Okinawa Jan-Feb, Kyushu/Kansai late Mar, Kanto early Apr, Tohoku mid Apr, Hokkaido late Apr-May.\nTry kawazu_forecast for Jan-Feb early blooms.` }] };
         }
-        let output = `# Best cities for sakura: ${start_date} to ${end_date}\n\n${matches.length} cities with bloom in your window.\nUse sakura.spots to find specific parks.\n\n`;
+        let output = `# Best cities for sakura: ${start_date} to ${end_date}\n\n${matches.length} cities with bloom in your window.\nUse sakura_spots to find specific parks.\n\n`;
         output += formatCityResults(matches, outputConfig);
         return { content: [{ type: "text", text: output }] };
       } catch (e: any) {
@@ -600,7 +600,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           const results = await Promise.allSettled(
             TOP_KOYO_PREFS.map(p => getKoyoSpots(p.code))
           );
-          let output = `# Top Autumn Leaves Destinations in Japan\n\nShowing top-rated spots from 5 prime koyo prefectures. For nationwide timing, use koyo.forecast. For trip-date matching, use koyo.best_dates.\n\n`;
+          let output = `# Top Autumn Leaves Destinations in Japan\n\nShowing top-rated spots from 5 prime koyo prefectures. For nationwide timing, use koyo_forecast. For trip-date matching, use koyo_best_dates.\n\n`;
           for (let i = 0; i < results.length; i++) {
             const r = results[i];
             if (r.status === "rejected") continue;
@@ -683,7 +683,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           return { content: [{ type: "text", text: `No koyo cities in colour during ${start_date} to ${end_date}.\n\nTypical season: Hokkaido/mountains Sep–Oct, Tohoku/Nikko Oct, Kanto/Kyoto mid-Oct to Nov, Kyushu Nov–early Dec.` }] };
         }
 
-        let output = `# Best cities for koyo: ${start_date} to ${end_date}\n\n${matches.length} cities with autumn colour in your window.\nUse koyo.spots to find specific parks and temples.\n\n`;
+        let output = `# Best cities for koyo: ${start_date} to ${end_date}\n\n${matches.length} cities with autumn colour in your window.\nUse koyo_spots to find specific parks and temples.\n\n`;
         for (const m of matches) {
           output += `### ${m.name} (${m.pref})\n`;
           if (m.mapleDate) output += `- 🍁 Maple peak: ${formatKoyoOutputDate(m.mapleDate, outputConfig)}\n`;
@@ -852,7 +852,7 @@ Use the japan-seasons-mcp tools based on the travel month:
             output += comingSoon.map(f => `- ${f.emoji} ${f.name}`).join("\n") + "\n\n";
           }
 
-          output += `Use fruit.farms to find specific farms with GPS coordinates.`;
+          output += `Use fruit_farms to find specific farms with GPS coordinates.`;
           return { content: [{ type: "text", text: output }] };
         }
 
@@ -873,7 +873,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           if (f.note) output += `- **Note:** ${f.note}\n`;
           output += "\n";
         }
-        output += `Use fruit.farms to find specific farms with GPS coordinates.`;
+        output += `Use fruit_farms to find specific farms with GPS coordinates.`;
         return { content: [{ type: "text", text: output }] };
       } catch (e: any) {
         return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
@@ -1007,7 +1007,7 @@ Use the japan-seasons-mcp tools based on the travel month:
         output += `Filters: ${monthLabel}fruit=${fruit || "any"}, region=${region || "any"} → ${farms.length} matches (${withCoords} with GPS)\n\n`;
 
         if (shown.length === 0) {
-          return { content: [{ type: "text", text: `No farms found. Try fruit.seasons to see what's in season, then filter by a specific fruit.` }] };
+          return { content: [{ type: "text", text: `No farms found. Try fruit_seasons to see what's in season, then filter by a specific fruit.` }] };
         }
 
         for (const f of shown) {
