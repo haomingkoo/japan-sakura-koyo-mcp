@@ -46,8 +46,11 @@ interface OutputConfig {
 }
 
 // ─── Static JSON: load once at startup, reused across all MCP tool calls ─────
+// Resolves relative to the package root (dist/../public) so it works correctly
+// whether the server is run via npx, node dist/index.js, or from any CWD.
+const __publicDir = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 function loadStaticJSON(filename: string) {
-  const p = resolve(process.cwd(), "public", filename);
+  const p = join(__publicDir, filename);
   try { return JSON.parse(readFileSync(p, "utf-8")); } catch { return null; }
 }
 const STATIC_MCP = {
