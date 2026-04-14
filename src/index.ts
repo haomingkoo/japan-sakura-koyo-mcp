@@ -11,6 +11,7 @@ import { fileURLToPath } from "url";
 import { logger } from "./lib/logger.js";
 import { VERSION as SERVER_VERSION } from "./lib/version.js";
 import { handleApiRequest, warmSpotsCache } from "./api.js";
+import { onDailyFlush } from "./lib/cache.js";
 import {
   getSakuraForecast,
   getSakuraSpots,
@@ -1321,6 +1322,14 @@ async function startHttpServer() {
     logger.info(`japan-seasons-mcp HTTP server on port ${port}`);
     logger.info(`MCP endpoint: http://localhost:${port}/mcp`);
     logger.info(`Rate limit: ${RATE_LIMIT_MAX} req/min per IP, max ${MAX_SESSIONS} sessions`);
+  });
+
+  // Re-warm forecasts + spots automatically after each daily 9 AM JST cache flush.
+  onDailyFlush(() => {
+    logger.info("Post-flush re-warm starting…");
+    Promise.all([getSakuraForecast(), getKoyoForecast(), getKawazuForecast()])
+      .then(() => warmSpotsCache())
+      .catch((e: any) => logger.error(`Post-flush re-warm failed: ${e.message}`));
   });
 
   // Pre-warm forecast caches in the background so the first visitor never waits.

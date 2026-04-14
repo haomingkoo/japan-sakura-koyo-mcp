@@ -81,6 +81,13 @@ function msUntilNext9amJST(): number {
   return next.getTime() - now.getTime();
 }
 
+let postFlushCallback: (() => void) | undefined;
+
+/** Register a callback to run immediately after each daily cache flush (e.g. to re-warm). */
+export function onDailyFlush(fn: () => void): void {
+  postFlushCallback = fn;
+}
+
 function scheduleDailyFlush() {
   const ms = msUntilNext9amJST();
   const hours = Math.round(ms / 3600000 * 10) / 10;
@@ -89,6 +96,7 @@ function scheduleDailyFlush() {
   setTimeout(() => {
     logger.info("9 AM JST — flushing cache for fresh bloom data");
     cache.flush();
+    postFlushCallback?.();
     // Reschedule rather than using setInterval so each flush recalculates
     // the next exact 9 AM JST, preventing drift over days.
     scheduleDailyFlush();
