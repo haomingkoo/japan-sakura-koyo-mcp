@@ -176,9 +176,11 @@ function getOutputConfigFromEnv(env: NodeJS.ProcessEnv = process.env): OutputCon
 // ─── Pre-load static frontend files into memory at startup ──────────────────
 // Avoids per-request disk I/O and server-side gzip (Railway proxy handles compression).
 const STATIC_FILE_MAP: Record<string, { file: string; mime: string }> = {
-  "/":         { file: "index.html", mime: "text/html; charset=utf-8" },
-  "/app.css":  { file: "app.css",    mime: "text/css; charset=utf-8" },
-  "/app.js":   { file: "app.js",     mime: "application/javascript; charset=utf-8" },
+  "/":            { file: "index.html", mime: "text/html; charset=utf-8" },
+  "/app.css":     { file: "app.css",    mime: "text/css; charset=utf-8" },
+  "/app.js":      { file: "app.js",     mime: "application/javascript; charset=utf-8" },
+  "/robots.txt":  { file: "robots.txt", mime: "text/plain; charset=utf-8" },
+  "/llms.txt":    { file: "llms.txt",   mime: "text/plain; charset=utf-8" },
 };
 const STATIC_FILES: Record<string, { body: Buffer; mime: string }> = {};
 {
@@ -190,6 +192,23 @@ const STATIC_FILES: Record<string, { body: Buffer; mime: string }> = {};
       logger.warn(`Static file not found: ${entry.file}`);
     }
   }
+}
+
+// ─── Sitemap ────────────────────────────────────────────────────────────────
+// Expand here when per-season or per-prefecture landing pages ship.
+const SITE_BASE_URL = "https://seasons.kooexperience.com";
+function SITEMAP_XML(): string {
+  const today = new Date().toISOString().slice(0, 10);
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${SITE_BASE_URL}/</loc>
+    <lastmod>${today}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>
+`;
 }
 
 const SERVER_INSTRUCTIONS = `You are connected to Japan in Seasons, a read-only MCP server for live Japan seasonal travel data.
@@ -1361,6 +1380,16 @@ async function startHttpServer() {
     if (url.pathname.startsWith("/api/")) {
       const handled = await handleApiRequest(req, res, url.pathname, url.searchParams);
       if (handled) return;
+    }
+
+    // Dynamic sitemap — regenerated on each request with today's date
+    if (url.pathname === "/sitemap.xml") {
+      res.writeHead(200, {
+        "Content-Type": "application/xml; charset=utf-8",
+        "Cache-Control": "public, max-age=3600",
+      });
+      res.end(SITEMAP_XML());
+      return;
     }
 
     // Serve frontend static files

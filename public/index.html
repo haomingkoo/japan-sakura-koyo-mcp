@@ -3,9 +3,148 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#e8466b">
+
+  <title>Japan in Seasons — Live Cherry Blossom, Autumn Leaves, Festivals & Flowers</title>
+  <meta name="description" content="Live Japan seasonal travel data: sakura (cherry blossom) forecasts, koyo (autumn leaves), festivals, flowers, fruit picking, and weather. 1,700+ GPS-tagged spots across all 47 prefectures, sourced from Japan Meteorological Corporation. Free, open-source, with an MCP server for AI assistants.">
+  <meta name="keywords" content="Japan travel, cherry blossom, sakura, autumn leaves, koyo, Japan festivals, matsuri, fruit picking, Japan Meteorological Agency, JMA, MCP server">
+  <meta name="author" content="Haoming Koo">
+
+  <link rel="canonical" href="https://seasons.kooexperience.com/">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
-  <title>Japan in Seasons — Cherry Blossom, Koyo, Fruit Picking & Festivals</title>
-  <meta name="description" content="Seasonal activities in Japan — cherry blossom, autumn leaves, fruit picking, wisteria, hydrangea, fireworks & more. 1,700+ spots with live data.">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://seasons.kooexperience.com/">
+  <meta property="og:title" content="Japan in Seasons — Live Cherry Blossom, Autumn Leaves, Festivals & Flowers">
+  <meta property="og:description" content="1,700+ GPS-tagged spots across all 47 prefectures. Live bloom forecasts from Japan Meteorological Corporation. Free, open-source, with an MCP server for AI assistants.">
+  <meta property="og:image" content="https://seasons.kooexperience.com/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:site_name" content="Japan in Seasons">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Japan in Seasons — Live Seasonal Travel Data">
+  <meta name="twitter:description" content="Live sakura, koyo, festivals, flowers, and weather for Japan. 1,700+ spots. Free + MCP for AI assistants.">
+  <meta name="twitter:image" content="https://seasons.kooexperience.com/og-image.png">
+
+  <!-- JSON-LD: WebSite -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Japan in Seasons",
+    "alternateName": "japan-seasons-mcp",
+    "url": "https://seasons.kooexperience.com/",
+    "description": "Live Japan seasonal travel data: cherry blossom, autumn leaves, festivals, flowers, fruit picking, and weather.",
+    "inLanguage": "en",
+    "author": {
+      "@type": "Person",
+      "name": "Haoming Koo",
+      "url": "https://kooexperience.com"
+    },
+    "license": "https://opensource.org/licenses/MIT",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://seasons.kooexperience.com/?q={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+
+  <!-- JSON-LD: Dataset — helps Google Dataset Search and AI systems understand our data scope -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": "Japan Seasonal Travel Dataset",
+    "description": "Live cherry blossom (sakura) bloom forecasts across 48 JMC observation cities, autumn leaves (koyo) timing, 46 festivals, 90 flower spots, 1,012+ sakura viewing locations, and fruit farm directory. Across all 47 Japanese prefectures. Sourced from Japan Meteorological Corporation, Japan Meteorological Agency, Open-Meteo, and official tourism boards.",
+    "url": "https://seasons.kooexperience.com/",
+    "keywords": ["sakura", "cherry blossom", "koyo", "autumn leaves", "Japan travel", "matsuri", "festivals", "Japan Meteorological Agency", "JMA", "JMC"],
+    "creator": {
+      "@type": "Person",
+      "name": "Haoming Koo",
+      "url": "https://kooexperience.com"
+    },
+    "license": "https://opensource.org/licenses/MIT",
+    "isAccessibleForFree": true,
+    "distribution": [
+      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/sakura/forecast"},
+      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/koyo/forecast"},
+      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/festivals"},
+      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/flowers"}
+    ],
+    "spatialCoverage": {
+      "@type": "Place",
+      "name": "Japan",
+      "geo": {
+        "@type": "GeoShape",
+        "box": "24.0 122.0 45.5 146.0"
+      }
+    }
+  }
+  </script>
+
+  <!-- JSON-LD: FAQPage — optimized for AI citation (Google AI Overviews, ChatGPT, Perplexity) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "When do cherry blossoms bloom in Japan?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Cherry blossoms (sakura) in Japan typically bloom between late March and early May. Timing varies by latitude: Okinawa and Kyushu bloom first in mid-to-late March, Tokyo and Kyoto around late March to early April, and northern Tohoku and Hokkaido bloom in late April to early May. Full bloom (mankai) follows the first bloom by about 5 to 7 days. Japan in Seasons tracks live bloom status across 48 JMC observation cities."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the best time for autumn leaves (koyo) in Japan?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Autumn leaves (koyo) in Japan peak from mid-October in Hokkaido down to early December in Kyushu. Kyoto's famous maple spots typically peak in mid-to-late November. The best koyo viewing is the narrow window around each spot's peak, which shifts each year with temperature. Japan in Seasons tracks current koyo timing by city and prefecture."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the Japan Meteorological Corporation (JMC) bloom scale?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "JMC publishes bloom rate (0 to 100 percent, indicating progress to first bloom) and full-bloom rate (0 to 100 percent, indicating progress to mankai or peak bloom). A full-bloom rate of 90 to 100 percent is mankai, the optimal viewing window. Bloom rate tracks the first 5 to 6 opened flowers on a sample tree; full-bloom rate tracks overall canopy coverage."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How accurate are Japan cherry blossom forecasts?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Official JMC forecasts update weekly from January and are typically accurate to within 1 to 3 days of actual bloom. Japan in Seasons surfaces JMC forecast dates, actual observation dates when available, and historical averages for each of 48 observation cities, so travelers can compare against long-term norms."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Japan in Seasons free to use?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Japan in Seasons is free and open-source under the MIT license. The interactive map, REST API, and Model Context Protocol server are all free for personal and commercial use. All data is sourced from Japan Meteorological Corporation, Japan Meteorological Agency, Open-Meteo, and official tourism boards."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I use Japan in Seasons with Claude, ChatGPT, or other AI assistants?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Japan in Seasons exposes a Model Context Protocol (MCP) server at seasons.kooexperience.com/mcp. AI assistants that support MCP — including Claude Desktop, Claude Code, and Cursor — can connect to it to query live sakura forecasts, koyo timing, festivals, flowers, fruit picking, and weather. Install via npm: npx japan-seasons-mcp, or point your MCP client at the remote endpoint."
+        }
+      }
+    ]
+  }
+  </script>
+
   <link rel="preconnect" href="https://a.basemaps.cartocdn.com">
   <link rel="preconnect" href="https://b.basemaps.cartocdn.com">
   <link rel="preconnect" href="https://c.basemaps.cartocdn.com">
@@ -25,7 +164,7 @@
   <div class="top-bar">
     <div class="brand">
       <h1>Japan in Seasons</h1>
-      <span class="brand-by">by <a href="https://kooexperience.com" target="_blank" rel="noopener">Haoming Koo</a> &middot; <a href="https://github.com/haomingkoo/japan-seasons-mcp" target="_blank" rel="noopener">GitHub</a></span>
+      <span class="brand-by">by <a href="https://kooexperience.com" target="_blank" rel="noopener">Haoming Koo</a> &middot; <a href="https://github.com/haomingkoo/japan-seasons-mcp" target="_blank" rel="noopener">GitHub</a> &middot; <a class="install-cta" href="#install">🤖 Use in AI</a></span>
     </div>
     <div class="controls">
       <button class="mode-btn" id="btn-sakura" onclick="setMode('sakura')" aria-label="Cherry Blossom mode">Cherry Blossom</button>
@@ -84,6 +223,85 @@
     </div>
   </div>
 </div>
+
+<!-- Static content below the map. Crawlable by search engines and extractable by AI assistants. -->
+<main class="content">
+  <section class="content-section" id="about">
+    <h2>Japan's four seasons, in live data</h2>
+    <p><strong>Japan in Seasons</strong> is a free, open-source travel companion that tracks live seasonal timing across Japan: <strong>cherry blossoms (sakura)</strong>, <strong>autumn leaves (koyo)</strong>, <strong>festivals (matsuri and fireworks)</strong>, <strong>seasonal flowers</strong> (plum, wisteria, hydrangea, lavender, sunflower, cosmos), and <strong>fruit picking</strong>. It covers 1,700+ GPS-tagged spots across all 47 prefectures, with forecasts updated daily at 09:00 JST.</p>
+    <p>Data is sourced directly from the <strong>Japan Meteorological Corporation (JMC)</strong> for bloom forecasts, the <strong>Japan Meteorological Agency (JMA)</strong> for weather, <strong>Open-Meteo</strong> for spot-level conditions, and official tourism boards for festivals. No scraping, no hallucination — all values come from live APIs.</p>
+  </section>
+
+  <section class="content-section" id="stats">
+    <h2>What's in the dataset</h2>
+    <ul>
+      <li><strong>48</strong> official JMC sakura observation cities with bloom and full-bloom dates</li>
+      <li><strong>1,012+</strong> sakura viewing spots (parks, temples, riversides) across 47 prefectures</li>
+      <li><strong>Koyo (autumn leaves)</strong> forecasts per city with peak-window timing</li>
+      <li><strong>46</strong> curated festivals (matsuri, fireworks, winter events) with official URLs and GPS</li>
+      <li><strong>90</strong> flower spots across six categories (plum, wisteria, hydrangea, lavender, sunflower, cosmos)</li>
+      <li><strong>Fruit farms</strong> directory with GPS, booking links, and seasonal fruit guide</li>
+      <li><strong>Short-range weather</strong> per spot (Open-Meteo) and per city (JMA)</li>
+    </ul>
+  </section>
+
+  <section class="content-section" id="install">
+    <h2>Use it in Claude, ChatGPT, or any AI assistant</h2>
+    <p>Japan in Seasons ships a <strong>Model Context Protocol (MCP)</strong> server. Any AI assistant that speaks MCP — Claude Desktop, Claude Code, Cursor, and others — can query live sakura, koyo, festival, flower, and weather data directly.</p>
+
+    <h3>Remote MCP endpoint (zero install)</h3>
+    <p>Point your MCP client at:</p>
+    <pre><code>https://seasons.kooexperience.com/mcp</code></pre>
+
+    <h3>Local install via npm</h3>
+    <pre><code>npx japan-seasons-mcp</code></pre>
+
+    <h3>Claude Desktop config</h3>
+    <pre><code>{
+  "mcpServers": {
+    "japan-seasons": {
+      "command": "npx",
+      "args": ["-y", "japan-seasons-mcp"]
+    }
+  }
+}</code></pre>
+
+    <h3>Available tools</h3>
+    <p><code>sakura_forecast</code>, <code>sakura_best_dates</code>, <code>sakura_spots</code>, <code>kawazu_forecast</code>, <code>koyo_forecast</code>, <code>koyo_best_dates</code>, <code>koyo_spots</code>, <code>flowers_spots</code>, <code>festivals_list</code>, <code>fruit_seasons</code>, <code>fruit_farms</code>, <code>weather_forecast</code>.</p>
+
+    <p><a href="https://github.com/haomingkoo/japan-seasons-mcp#install" target="_blank" rel="noopener">Full install guide on GitHub →</a></p>
+  </section>
+
+  <section class="content-section" id="faq">
+    <h2>Frequently asked questions</h2>
+
+    <h3>When do cherry blossoms bloom in Japan?</h3>
+    <p>Cherry blossoms typically bloom between late March and early May. Timing varies by latitude: Okinawa and Kyushu bloom first in mid-to-late March, Tokyo and Kyoto around late March to early April, and northern Tohoku and Hokkaido in late April to early May. Full bloom (mankai) follows first bloom by roughly 5 to 7 days.</p>
+
+    <h3>When is the best time for autumn leaves (koyo) in Japan?</h3>
+    <p>Koyo peaks from mid-October in Hokkaido down to early December in Kyushu. Kyoto's famous maple spots typically peak in mid-to-late November. The best koyo viewing is the narrow window around each spot's peak, which shifts each year with temperature.</p>
+
+    <h3>What is the JMC bloom scale?</h3>
+    <p>JMC publishes a bloom rate (0–100%, progress to first bloom) and a full-bloom rate (0–100%, progress to mankai). A full-bloom rate of 90–100% is mankai — the optimal viewing window.</p>
+
+    <h3>How accurate are Japan cherry blossom forecasts?</h3>
+    <p>Official JMC forecasts update weekly from January and are typically accurate to within 1 to 3 days of actual bloom. Japan in Seasons surfaces JMC forecast dates, actual observation dates when available, and long-term historical averages for each of 48 observation cities.</p>
+
+    <h3>Is Japan in Seasons free?</h3>
+    <p>Yes. Free and open-source under the MIT license. The interactive map, REST API, and MCP server are all free for personal and commercial use.</p>
+  </section>
+
+  <section class="content-section" id="sources">
+    <h2>Data sources and attribution</h2>
+    <ul>
+      <li><a href="https://n-kishou.com/" target="_blank" rel="noopener">Japan Meteorological Corporation (JMC)</a> — official sakura and koyo bloom forecasts</li>
+      <li><a href="https://www.jma.go.jp/" target="_blank" rel="noopener">Japan Meteorological Agency (JMA)</a> — short-range weather per city</li>
+      <li><a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> — spot-level weather by latitude/longitude</li>
+      <li>Official tourism boards and festival organizer websites — matsuri dates, attendance, and links</li>
+    </ul>
+    <p class="attribution">Built by <a href="https://kooexperience.com" target="_blank" rel="noopener">Haoming Koo</a>. MIT licensed. <a href="https://github.com/haomingkoo/japan-seasons-mcp" target="_blank" rel="noopener">Source on GitHub</a> · <a href="https://www.npmjs.com/package/japan-seasons-mcp" target="_blank" rel="noopener">npm</a>.</p>
+  </section>
+</main>
 
 <script data-cfasync="false" src="app.js"></script>
 </body>

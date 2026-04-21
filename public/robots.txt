@@ -1,0 +1,48 @@
+# Japan in Seasons — https://seasons.kooexperience.com
+# Allow indexing and AI citation. Block training-only crawlers.
+
+User-agent: *
+Allow: /
+
+# AI search / citation bots — allowed so this site can be cited in AI answers
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# Training-only crawlers — disallowed
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://seasons.kooexperience.com/sitemap.xml
