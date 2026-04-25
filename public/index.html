@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#e8466b">
 
   <title>Japan in Seasons — Live Cherry Blossom, Autumn Leaves, Festivals & Flowers</title>
-  <meta name="description" content="Live Japan seasonal travel data: sakura (cherry blossom) forecasts, koyo (autumn leaves), festivals, flowers, fruit picking, and weather. 1,700+ GPS-tagged spots across all 47 prefectures, sourced from Japan Meteorological Corporation. Free, open-source, with an MCP server for AI assistants.">
+  <meta name="description" content="Live Japan seasonal travel data: sakura (cherry blossom) forecasts, koyo (autumn leaves), festivals, flowers, fruit picking, and weather. 1,700+ GPS-tagged spots across all 47 prefectures, with JMC/JMA forecasts and curated travel datasets. Free, open-source, with an MCP server for AI assistants.">
   <meta name="keywords" content="Japan travel, cherry blossom, sakura, autumn leaves, koyo, Japan festivals, matsuri, fruit picking, Japan Meteorological Agency, JMA, MCP server">
   <meta name="author" content="Haoming Koo">
 
@@ -60,7 +60,7 @@
     "@context": "https://schema.org",
     "@type": "Dataset",
     "name": "Japan Seasonal Travel Dataset",
-    "description": "Live cherry blossom (sakura) bloom forecasts across 48 JMC observation cities, autumn leaves (koyo) timing, 46 festivals, 90 flower spots, 1,012+ sakura viewing locations, and fruit farm directory. Across all 47 Japanese prefectures. Sourced from Japan Meteorological Corporation, Japan Meteorological Agency, Open-Meteo, and official tourism boards.",
+    "description": "Live cherry blossom (sakura) bloom forecasts across 48 JMC observation cities, autumn leaves (koyo) timing, 46 festivals, 90 flower spots, 1,012 sakura viewing locations, and a 346-farm fruit directory. Across all 47 Japanese prefectures. Forecast data comes from Japan Meteorological Corporation, Japan Meteorological Agency, and Open-Meteo; static travel datasets include official source links.",
     "url": "https://seasons.kooexperience.com/",
     "keywords": ["sakura", "cherry blossom", "koyo", "autumn leaves", "Japan travel", "matsuri", "festivals", "Japan Meteorological Agency", "JMA", "JMC"],
     "creator": {
@@ -229,20 +229,21 @@
   <section class="content-section" id="about">
     <h2>Japan's four seasons, in live data</h2>
     <p><strong>Japan in Seasons</strong> is a free, open-source travel companion that tracks live seasonal timing across Japan: <strong>cherry blossoms (sakura)</strong>, <strong>autumn leaves (koyo)</strong>, <strong>festivals (matsuri and fireworks)</strong>, <strong>seasonal flowers</strong> (plum, wisteria, hydrangea, lavender, sunflower, cosmos), and <strong>fruit picking</strong>. It covers 1,700+ GPS-tagged spots across all 47 prefectures, with forecasts updated daily at 09:00 JST.</p>
-    <p>Data is sourced directly from the <strong>Japan Meteorological Corporation (JMC)</strong> for bloom forecasts, the <strong>Japan Meteorological Agency (JMA)</strong> for weather, <strong>Open-Meteo</strong> for spot-level conditions, and official tourism boards for festivals. No scraping, no hallucination — all values come from live APIs.</p>
+    <p>Forecast data comes from the <strong>Japan Meteorological Corporation (JMC)</strong>, the <strong>Japan Meteorological Agency (JMA)</strong>, and <strong>Open-Meteo</strong>. Flower, festival, and fruit-farm datasets are packaged with official URLs and GPS coordinates so AI answers can cite concrete source links instead of inventing places.</p>
   </section>
 
   <section class="content-section" id="stats">
     <h2>What's in the dataset</h2>
     <ul>
       <li><strong>48</strong> official JMC sakura observation cities with bloom and full-bloom dates</li>
-      <li><strong>1,012+</strong> sakura viewing spots (parks, temples, riversides) across 47 prefectures</li>
+      <li><strong>1,012</strong> sakura viewing spots (parks, temples, riversides) across 47 prefectures</li>
       <li><strong>Koyo (autumn leaves)</strong> forecasts per city with peak-window timing</li>
       <li><strong>46</strong> curated festivals (matsuri, fireworks, winter events) with official URLs and GPS</li>
       <li><strong>90</strong> flower spots across six categories (plum, wisteria, hydrangea, lavender, sunflower, cosmos)</li>
-      <li><strong>Fruit farms</strong> directory with GPS, booking links, and seasonal fruit guide</li>
+      <li><strong>346</strong> fruit farms with GPS, booking links, and seasonal fruit guide</li>
       <li><strong>Short-range weather</strong> per spot (Open-Meteo) and per city (JMA)</li>
     </ul>
+    <p>Focused forecast pages: <a href="/cherry-blossom-forecast">Japan cherry blossom forecast</a>, <a href="/autumn-leaves-forecast">Japan autumn leaves forecast</a>, and <a href="/japan-seasonal-travel-mcp">Japan seasonal travel MCP</a>.</p>
   </section>
 
   <section class="content-section" id="install">
@@ -266,7 +267,10 @@
   }
 }</code></pre>
 
-    <h3>Available tools</h3>
+    <h3>Best AI entry points</h3>
+    <p><code>japan_seasonal_answer</code> for broad seasonal travel questions, <code>sakura_now</code> for "how is the sakura forecast?" prompts, <code>koyo_now</code> for autumn leaves prompts, and <code>search</code> / <code>fetch</code> for retrieval and citation flows.</p>
+
+    <h3>Specialist tools</h3>
     <p><code>sakura_forecast</code>, <code>sakura_best_dates</code>, <code>sakura_spots</code>, <code>kawazu_forecast</code>, <code>koyo_forecast</code>, <code>koyo_best_dates</code>, <code>koyo_spots</code>, <code>flowers_spots</code>, <code>festivals_list</code>, <code>fruit_seasons</code>, <code>fruit_farms</code>, <code>weather_forecast</code>.</p>
 
     <p><a href="https://github.com/haomingkoo/japan-seasons-mcp#install" target="_blank" rel="noopener">Full install guide on GitHub →</a></p>

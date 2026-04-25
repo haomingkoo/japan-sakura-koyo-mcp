@@ -1,12 +1,12 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.haomingkoo/japan-seasons",
-  "description": "Live Japan seasonal travel MCP: sakura, koyo, flowers, festivals, fruit farms, and weather.",
+  "description": "Live Japan seasonal travel MCP with AI-ready answers: sakura forecasts, autumn leaves, flowers, festivals, fruit farms, and weather from JMC/JMA data.",
   "repository": {
     "url": "https://github.com/haomingkoo/japan-seasons-mcp",
     "source": "github"
   },
-  "version": "0.4.16",
+  "version": "0.4.17",
   "remotes": [
     {
       "type": "streamable-http",
@@ -48,7 +48,7 @@
     {
       "registryType": "npm",
       "identifier": "japan-seasons-mcp",
-      "version": "0.4.16",
+      "version": "0.4.17",
       "environmentVariables": [
         {
           "name": "JAPAN_SEASONS_DATE_STYLE",
@@ -78,7 +78,7 @@
     {
       "registryType": "npm",
       "identifier": "japan-seasons-mcp",
-      "version": "0.4.16",
+      "version": "0.4.17",
       "environmentVariables": [
         {
           "name": "PORT",

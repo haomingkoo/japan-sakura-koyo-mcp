@@ -4,7 +4,7 @@
 
 **Give your AI assistant live Japan travel data — cherry blossom forecasts, autumn leaves, fruit picking, flowers, festivals & more.**
 
-*1,700+ spots. 12 tools. Live data from Japan Meteorological Corporation.*
+*1,700+ spots. 17 tools. Live data from Japan Meteorological Corporation.*
 
 [![npm version](https://img.shields.io/npm/v/japan-seasons-mcp.svg)](https://www.npmjs.com/package/japan-seasons-mcp)
 [![npm downloads](https://img.shields.io/npm/dm/japan-seasons-mcp.svg)](https://www.npmjs.com/package/japan-seasons-mcp)
@@ -119,9 +119,9 @@ PORT=3000 npx -y japan-seasons-mcp --http
 | May–Jun | Iris gardens | 9 spots | curated |
 | Jun–Jul | Hydrangea | 15 spots | curated |
 | Jun–Jul | Lavender fields | 6 spots | curated |
-| Jul–Aug | Fireworks festivals & summer matsuri | 52 events | curated |
+| Jul–Aug | Fireworks festivals & summer matsuri | 46 events | curated |
 | Jul–Aug | Sunflower fields | 7 spots | curated |
-| May–Nov | Fruit picking | **350+ farms**, 14 fruits | Jalan + Navitime |
+| May–Nov | Fruit picking | **346 farms**, 14 fruits | Jalan + Navitime |
 | Sep–Oct | Cosmos fields | 8 spots | curated |
 | Oct–Dec | Autumn leaves (koyo) | **687 viewing spots** | JMC live |
 | Jan–Feb | Winter events (Sapporo Snow Festival, etc.) | 8 events | curated |
@@ -131,6 +131,24 @@ PORT=3000 npx -y japan-seasons-mcp --http
 ---
 
 ## Tools
+
+### Best first-call tools
+
+**`japan_seasonal_answer`** — answer a broad traveler question
+
+Use this when someone asks a normal question instead of naming a dataset: "How is the sakura forecast?", "What is good in Japan in June?", "Where should I see autumn leaves in late November?", or "What seasonal activities match my dates?" It routes to the right live or curated dataset and returns a ready-to-use recommendation.
+
+**`sakura_now`** — current cherry blossom answer
+
+The best first call for broad sakura prompts. It summarizes what is good now, what is coming next, or what matched the user's trip dates, using live JMC forecast/observation data.
+
+**`koyo_now`** — current autumn leaves answer
+
+The autumn equivalent of `sakura_now`: current koyo timing, maple/ginkgo peaks, trip-date matches, and next-step guidance for exact spots.
+
+**`search` / `fetch`** — retrieval-friendly access
+
+Provider-friendly search/fetch tools for ChatGPT-style retrieval and deep-research citation flows. `search` returns result IDs; `fetch` returns full text with a canonical URL.
 
 ### Cherry blossom
 
@@ -205,7 +223,7 @@ Each spot has a peak window (start, peak, end), leaf type, popularity rating, an
 
 ### Flowers
 
-**`flowers_spots`** — 80 curated spots, 8 flower types, Jan through Oct
+**`flowers_spots`** — 90 curated spots, 8 flower types, Jan through Oct
 
 | Type | Season | Notable spots |
 |------|---------|--------------|
@@ -224,7 +242,7 @@ Filter by `type`, `prefecture`, or `month`. Each spot has an official URL and ve
 
 ### Festivals and events
 
-**`festivals_list`** — 52 major recurring events with official URLs and attendance figures
+**`festivals_list`** — 46 major recurring events with official URLs and attendance figures
 
 ```
 "Best fireworks festivals in Japan?"
@@ -249,7 +267,7 @@ Which fruits are in season and at peak for any given month, with best regions an
 → Grape at peak (Yamanashi, Nagano), Pear at peak, Peach ending, Apple starting
 ```
 
-**`fruit_farms`** — 350+ farms with GPS and booking links
+**`fruit_farms`** — 346 farms with GPS and booking links
 
 Pass `month=` and it auto-filters to farms with something in season. Add `region=` to narrow further.
 
@@ -305,11 +323,11 @@ flowchart LR
     end
 
     subgraph static["Static datasets (loaded at startup)"]
-        DATA["flowers.json — 80 spots\nfestivals.json — 52 events\nfruit-farms.json — 350+ farms"]
+        DATA["flowers.json — 90 spots\nfestivals.json — 46 events\nfruit-farms.json — 346 farms"]
     end
 
     subgraph server["japan-seasons-mcp"]
-        MCP["12 tools\n1 planning prompt\nstdio + HTTP transport"]
+        MCP["17 tools\n2 prompts\nstdio + HTTP transport"]
     end
 
     subgraph clients["MCP clients"]
@@ -370,7 +388,7 @@ Peak viewing is typically full bloom ± 3 days. Rain accelerates petal fall.
 
 ## Web app
 
-[seasons.kooexperience.com](https://seasons.kooexperience.com) is the interactive companion to this MCP server. It shows all the same data on a map — 1,012 sakura spots with lifecycle colours (orange bud, pink bloom, green ended), 687 koyo spots, 350+ fruit farms grouped by location, and 80 flower spots. There's also a "Plan My Trip" mode where you pick cities and see every seasonal activity near each one ranked by distance, and a "Near Me" button that finds spots within 30km of your GPS location.
+[seasons.kooexperience.com](https://seasons.kooexperience.com) is the interactive companion to this MCP server. It shows all the same data on a map — 1,012 sakura spots with lifecycle colours (orange bud, pink bloom, green ended), 687 koyo spots, 346 fruit farms grouped by location, and 90 flower spots. There are also focused SEO/citation pages for [cherry blossom forecasts](https://seasons.kooexperience.com/cherry-blossom-forecast), [autumn leaves forecasts](https://seasons.kooexperience.com/autumn-leaves-forecast), and the [MCP server](https://seasons.kooexperience.com/japan-seasonal-travel-mcp). The map includes a "Plan My Trip" mode where you pick cities and see every seasonal activity near each one ranked by distance, and a "Near Me" button that finds spots within 30km of your GPS location.
 
 ---
 
@@ -396,7 +414,7 @@ TypeScript. No external database. No auth required.
 | [Japan Meteorological Corporation](https://n-kishou.com) | Sakura and koyo forecasts, bloom percentages, 1,700+ viewing spots |
 | [Japan Meteorological Agency](https://www.jma.go.jp) via [tsukumijima](https://weather.tsukumijima.net) | City weather forecasts |
 | [Jalan](https://www.jalan.net) / [Navitime](https://www.navitime.co.jp) | Fruit picking farm listings |
-| Hand-curated | 80 flower spots, 52 festival entries, each with an official URL and verified GPS |
+| Hand-curated | 90 flower spots, 46 festival entries, each with an official URL and verified GPS |
 
 ---
 

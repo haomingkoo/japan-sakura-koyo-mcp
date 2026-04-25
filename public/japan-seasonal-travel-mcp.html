@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Japan Seasonal Travel MCP for Claude and ChatGPT</title>
+  <meta name="description" content="Connect Claude, ChatGPT, Cursor, and other MCP clients to live Japan seasonal travel data: sakura, autumn leaves, flowers, festivals, fruit picking, and weather.">
+  <link rel="canonical" href="https://seasons.kooexperience.com/japan-seasonal-travel-mcp">
+  <meta property="og:title" content="Japan Seasonal Travel MCP">
+  <meta property="og:description" content="A remote MCP server for live Japan sakura, koyo, flowers, festivals, fruit picking, and weather data.">
+  <meta property="og:image" content="https://seasons.kooexperience.com/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Japan in Seasons MCP",
+    "applicationCategory": "TravelApplication",
+    "operatingSystem": "Any MCP-compatible client",
+    "description": "Remote Model Context Protocol server for live Japan seasonal travel data: cherry blossoms, autumn leaves, flowers, festivals, fruit picking, and weather.",
+    "url": "https://seasons.kooexperience.com/japan-seasonal-travel-mcp",
+    "isAccessibleForFree": true,
+    "author": { "@type": "Person", "name": "Haoming Koo", "url": "https://kooexperience.com" }
+  }
+  </script>
+  <style>
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;color:#1f2937;margin:0;background:#fff}
+    main{max-width:920px;margin:0 auto;padding:40px 20px 64px}
+    nav{font-size:14px;margin-bottom:28px} a{color:#0f766e} h1{font-size:clamp(2rem,5vw,3.5rem);line-height:1.05;margin:0 0 16px;color:#111827} h2{margin-top:36px;color:#111827}
+    .lead{font-size:1.15rem;color:#4b5563}.cta{display:inline-block;background:#0f766e;color:#fff;text-decoration:none;padding:10px 14px;border-radius:8px;margin:8px 8px 8px 0}
+    code,pre{background:#f3f4f6;border-radius:6px} code{padding:2px 5px} pre{padding:14px;overflow:auto}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}.card{border:1px solid #e5e7eb;border-radius:8px;padding:16px}
+  </style>
+</head>
+<body>
+<main>
+  <nav><a href="/">Japan in Seasons</a> / MCP Server</nav>
+  <h1>Japan Seasonal Travel MCP for Claude and ChatGPT</h1>
+  <p class="lead">A read-only Model Context Protocol server that gives AI assistants live Japan seasonal travel data: cherry blossoms, autumn leaves, flowers, festivals, fruit picking, and weather.</p>
+  <p>
+    <a class="cta" href="https://smithery.ai/server/haomingkoo/japan-seasons-mcp">Open on Smithery</a>
+    <a class="cta" href="https://github.com/haomingkoo/japan-seasons-mcp">GitHub</a>
+    <a class="cta" href="/">Live Map</a>
+  </p>
+
+  <h2>Remote Endpoint</h2>
+  <pre><code>https://seasons.kooexperience.com/mcp</code></pre>
+  <p>This endpoint is public, HTTPS, read-only, and does not require an API key.</p>
+
+  <h2>Best Tool Entry Points</h2>
+  <div class="grid">
+    <div class="card"><strong><code>japan_seasonal_answer</code></strong><br>First call for broad questions like "what seasonal things are good in Japan in April?"</div>
+    <div class="card"><strong><code>sakura_now</code></strong><br>First call for "how is the sakura forecast?" and current cherry blossom prompts.</div>
+    <div class="card"><strong><code>koyo_now</code></strong><br>First call for current autumn leaves and fall foliage prompts.</div>
+    <div class="card"><strong><code>search</code> and <code>fetch</code></strong><br>Provider-friendly retrieval tools for ChatGPT and deep-research style citation flows.</div>
+  </div>
+
+  <h2>Claude Desktop Local Install</h2>
+  <pre><code>{
+  "mcpServers": {
+    "japan-seasons": {
+      "command": "npx",
+      "args": ["-y", "japan-seasons-mcp"]
+    }
+  }
+}</code></pre>
+
+  <h2>What It Can Answer</h2>
+  <ul>
+    <li>"How is the sakura forecast in Japan right now?"</li>
+    <li>"Where should I see cherry blossoms from April 8 to April 14?"</li>
+    <li>"How are autumn leaves looking in Kyoto?"</li>
+    <li>"What flowers are in season in June?"</li>
+    <li>"What fruit can I pick near Tokyo in May?"</li>
+    <li>"Will rain in Osaka this weekend affect sakura?"</li>
+  </ul>
+
+  <h2>Data Sources</h2>
+  <p>Primary seasonal forecast data comes from Japan Meteorological Corporation. Weather comes from Japan Meteorological Agency data. Static festival, flower, and fruit-farm data is curated with official links and GPS coordinates.</p>
+</main>
+</body>
+</html>

@@ -755,13 +755,15 @@ function setFruitFilter(name) {
 }
 
 async function loadFruitPicking() {
-  $('sidebar-header').innerHTML = '<h2>Fruit Picking in Japan</h2><p>350+ farms across Japan</p>';
+  $('sidebar-header').innerHTML = '<h2>Fruit Picking in Japan</h2><p>Loading farm directory...</p>';
   clearMarkers();
   updateLegend('fruit');
 
   if (!farmDataCache) {
     try { farmDataCache = await api('/api/fruit/farms'); } catch {}
   }
+  const farmCount = farmDataCache?.total ?? farmDataCache?.spots?.length ?? null;
+  $('sidebar-header').innerHTML = `<h2>Fruit Picking in Japan</h2><p>${farmCount ? `${farmCount} farms across Japan` : 'Farm directory across Japan'}</p>`;
 
   fruitSelectedMonth = new Date().getMonth() + 1;
   fruitFilter = null; // reset fruit filter on tab switch

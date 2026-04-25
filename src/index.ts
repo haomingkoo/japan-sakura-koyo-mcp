@@ -59,6 +59,15 @@ const STATIC_MCP = {
   farms:     loadStaticJSON("fruit-farms.json"),
 };
 
+function staticSpotCount(data: AnySpot | null): number | null {
+  if (!data) return null;
+  if (typeof data.total === "number") return data.total;
+  return Array.isArray(data.spots) ? data.spots.length : null;
+}
+
+const FRUIT_FARM_COUNT = staticSpotCount(STATIC_MCP.farms);
+const FRUIT_FARM_LABEL = FRUIT_FARM_COUNT === null ? "fruit-picking farms" : `${FRUIT_FARM_COUNT} fruit-picking farms`;
+
 // All tools are read-only (no side effects) and idempotent (same input = same output)
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 const READONLY: ToolAnnotations = { readOnlyHint: true, idempotentHint: true };
@@ -182,6 +191,12 @@ const STATIC_FILE_MAP: Record<string, { file: string; mime: string }> = {
   "/robots.txt":    { file: "robots.txt",                    mime: "text/plain; charset=utf-8" },
   "/llms.txt":      { file: "llms.txt",                      mime: "text/plain; charset=utf-8" },
   "/og-image.png":  { file: "og-image.png",                  mime: "image/png" },
+  "/cherry-blossom-forecast":  { file: "cherry-blossom-forecast.html",  mime: "text/html; charset=utf-8" },
+  "/cherry-blossom-forecast/": { file: "cherry-blossom-forecast.html",  mime: "text/html; charset=utf-8" },
+  "/autumn-leaves-forecast":   { file: "autumn-leaves-forecast.html",   mime: "text/html; charset=utf-8" },
+  "/autumn-leaves-forecast/":  { file: "autumn-leaves-forecast.html",   mime: "text/html; charset=utf-8" },
+  "/japan-seasonal-travel-mcp":  { file: "japan-seasonal-travel-mcp.html", mime: "text/html; charset=utf-8" },
+  "/japan-seasonal-travel-mcp/": { file: "japan-seasonal-travel-mcp.html", mime: "text/html; charset=utf-8" },
   "/googlec3efc6b89b4ed154.html": { file: "googlec3efc6b89b4ed154.html", mime: "text/html; charset=utf-8" },
 };
 const STATIC_FILES: Record<string, { body: Buffer; mime: string }> = {};
@@ -201,31 +216,42 @@ const STATIC_FILES: Record<string, { body: Buffer; mime: string }> = {};
 const SITE_BASE_URL = "https://seasons.kooexperience.com";
 function SITEMAP_XML(): string {
   const today = new Date().toISOString().slice(0, 10);
+  const urls = [
+    { loc: `${SITE_BASE_URL}/`, priority: "1.0" },
+    { loc: `${SITE_BASE_URL}/cherry-blossom-forecast`, priority: "0.95" },
+    { loc: `${SITE_BASE_URL}/autumn-leaves-forecast`, priority: "0.95" },
+    { loc: `${SITE_BASE_URL}/japan-seasonal-travel-mcp`, priority: "0.9" },
+    { loc: `${SITE_BASE_URL}/llms.txt`, priority: "0.5" },
+  ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>${SITE_BASE_URL}/</loc>
+${urls.map((url) => `  <url>
+    <loc>${url.loc}</loc>
     <lastmod>${today}</lastmod>
     <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
+    <priority>${url.priority}</priority>
+  </url>`).join("\n")}
 </urlset>
 `;
 }
 
 const SERVER_INSTRUCTIONS = `You are connected to Japan in Seasons, a read-only MCP server for live Japan seasonal travel data.
 
-Use this server when the user needs current timing or locations for cherry blossom, autumn leaves, flowers, festivals, fruit picking, or short-range weather in Japan. Do not use it for generic travel planning, hotels, flights, trains, visas, or restaurant recommendations.
+Use this server when the user needs current timing or locations for cherry blossom, autumn leaves, flowers, festivals, fruit picking, or short-range weather in Japan. This server is especially relevant for broad prompts such as "how is the sakura forecast?", "where should I see cherry blossoms this week?", "how are autumn leaves looking?", "what is blooming in Japan now?", and "what seasonal activities should I plan around?". Do not use it for generic travel planning, hotels, flights, trains, visas, or restaurant recommendations.
 
 Tool routing:
+- Use japan_seasonal_answer first for broad Japan seasonal-travel questions, ambiguous "what is good now?" prompts, trip-date prompts, or when the user asks for an answer rather than raw data.
+- Use sakura_now first for broad or current cherry blossom prompts such as "how is the sakura forecast?", "is sakura blooming now?", or "where is best for cherry blossoms this week?".
 - Use sakura_forecast for big-picture sakura timing, bloom progress, and city comparisons.
 - Use sakura_best_dates when the user gives travel dates and wants the best sakura cities in that window, then use sakura_spots for exact parks and temples.
 - Use kawazu_forecast for January-February cherry blossom requests or when the user mentions Kawazu-zakura, early blossoms, or Izu.
+- Use koyo_now first for broad or current autumn leaves prompts such as "how are autumn leaves looking?" or "where is koyo good now?".
 - Use koyo_forecast for autumn leaves timing by city, and koyo_best_dates when travel dates are provided. Follow with koyo_spots for exact viewing locations.
 - Use flowers_spots for non-sakura seasonal flowers such as plum, wisteria, hydrangea, lavender, sunflower, and cosmos.
 - Use festivals_list for recurring fireworks, matsuri, and winter events with official links.
 - Use fruit_seasons to answer which fruits are in season, and fruit_farms only when the user needs actual farms, GPS coordinates, or booking links.
 - Use weather_forecast after bloom tools when rain or temperature could change the recommendation, especially because rain can shorten sakura viewing.
+- Use search and fetch only for ChatGPT/deep-research style retrieval over the Japan in Seasons dataset and documentation.
 
 Important rules:
 - Sakura and koyo timing changes every year; prefer these tools over generic knowledge.
@@ -233,10 +259,504 @@ Important rules:
 - Best sakura viewing is usually around full bloom. Best koyo viewing is usually around each spot's peak window.
 - All tools are read-only and require no authentication.`;
 
+const DAY_MS = 86_400_000;
+const SITE_URL = "https://seasons.kooexperience.com";
+
+function todayJstIsoDate(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day}`;
+}
+
+function jstDate(dateOnly: string): Date {
+  return new Date(`${dateOnly}T00:00:00+09:00`);
+}
+
+function daysFromTodayJst(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.round((date.getTime() - jstDate(todayJstIsoDate()).getTime()) / DAY_MS);
+}
+
+function parseDateInput(value: string | undefined | null): Date | null {
+  if (!value) return null;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? jstDate(value) : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function monthFromDateInput(value: string | undefined | null): number | null {
+  const date = parseDateInput(value);
+  if (!date) return null;
+  return Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Tokyo", month: "numeric" }).format(date));
+}
+
+function currentJstMonth(): number {
+  return Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Tokyo", month: "numeric" }).format(new Date()));
+}
+
+function currentJstYear(): number {
+  return Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Tokyo", year: "numeric" }).format(new Date()));
+}
+
+function isoDateOnly(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString().slice(0, 10);
+}
+
+function isoYear(value: string | null | undefined): number | null {
+  const dateOnly = isoDateOnly(value);
+  return dateOnly ? Number(dateOnly.slice(0, 4)) : null;
+}
+
+function priorSeasonKoyoNote(lastUpdated: string | null | undefined): string | null {
+  const dataYear = isoYear(lastUpdated);
+  const thisYear = currentJstYear();
+  if (!dataYear || dataYear >= thisYear) return null;
+  const month = currentJstMonth();
+  if (month < 9) {
+    return `The latest JMC koyo feed available here is from ${dataYear}. The ${thisYear} autumn leaves forecast is usually published closer to autumn, so treat current koyo output as prior-season reference plus typical timing guidance until the new JMC forecast appears.`;
+  }
+  return `Warning: the latest JMC koyo feed available here is from ${dataYear}, not ${thisYear}. Treat these autumn leaves dates as prior-season reference until the upstream JMC feed publishes the current season.`;
+}
+
+function priorSeasonKoyoSpotNote(spots: Array<{ bestPeak?: string | null }>): string | null {
+  const peakYear = isoYear(spots.find((spot) => spot.bestPeak)?.bestPeak ?? null);
+  const thisYear = currentJstYear();
+  if (!peakYear || peakYear >= thisYear) return null;
+  return `These koyo spot peak windows are from the ${peakYear} JMC dataset. Treat them as prior-season reference until the ${thisYear} JMC spot forecast is published.`;
+}
+
+function daysLabel(delta: number | null): string {
+  if (delta === null) return "date unavailable";
+  if (delta === 0) return "today";
+  if (delta > 0) return `in ${delta} day${delta === 1 ? "" : "s"}`;
+  return `${Math.abs(delta)} day${delta === -1 ? "" : "s"} ago`;
+}
+
+function cityFullBloomIso(city: SakuraCity): string | null {
+  return city.fullBloom.observation ?? city.fullBloom.forecast ?? null;
+}
+
+function cityBloomIso(city: SakuraCity): string | null {
+  return city.bloom.observation ?? city.bloom.forecast ?? null;
+}
+
+function sortByClosestDate<T extends { delta: number | null }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    if (a.delta === null && b.delta === null) return 0;
+    if (a.delta === null) return 1;
+    if (b.delta === null) return -1;
+    return Math.abs(a.delta) - Math.abs(b.delta);
+  });
+}
+
+function formatSakuraCityLine(city: SakuraCity, outputConfig: OutputConfig): string {
+  const bloom = cityBloomIso(city);
+  const full = cityFullBloomIso(city);
+  const fullDelta = daysFromTodayJst(full);
+  const bloomLabel = city.bloom.observation ? "actual" : "forecast";
+  const fullLabel = city.fullBloom.observation ? "actual" : "forecast";
+  return `- **${city.cityName} (${city.prefName})** — ${city.status}; bloom ${formatSakuraDate(bloom, outputConfig)} ${bloomLabel}, full bloom ${formatSakuraDate(full, outputConfig)} ${fullLabel} (${daysLabel(fullDelta)})`;
+}
+
+async function formatSakuraNowAnswer(options: {
+  city?: string;
+  start_date?: string;
+  end_date?: string;
+  outputConfig: OutputConfig;
+}): Promise<string> {
+  const forecast = await getSakuraForecast();
+  const today = todayJstIsoDate();
+
+  if (options.start_date && options.end_date) {
+    const startDate = parseDateInput(options.start_date);
+    const endDate = parseDateInput(options.end_date);
+    if (!startDate || !endDate || endDate < startDate) {
+      return `Invalid trip dates. Use YYYY-MM-DD and make sure end_date is on or after start_date.`;
+    }
+    const matches = findBestRegions(forecast, startDate, endDate);
+    let output = `# Sakura forecast for ${options.start_date} to ${options.end_date}\n`;
+    output += `Source: ${forecast.source}. Checked against ${forecast.totalCities} JMC observation cities. Today in Japan: ${today}.\n\n`;
+    if (!matches.length) {
+      output += `No standard Somei-Yoshino observation city has a peak viewing window overlapping those dates. For January-February early blossoms, use kawazu_forecast. For exact parks after choosing an area, use sakura_spots.\n`;
+      return output;
+    }
+    output += `## Best city matches\n`;
+    for (const city of sortByClosestDate(matches.map((city) => ({ city, delta: daysFromTodayJst(cityFullBloomIso(city)) }))).slice(0, 10)) {
+      output += `${formatSakuraCityLine(city.city, options.outputConfig)}\n`;
+    }
+    output += `\nNext step: call sakura_spots for the matched prefecture, then weather_forecast if rain could affect petals.\n`;
+    return output;
+  }
+
+  let cities = forecast.regions.flatMap((region) => region.cities);
+  if (options.city) cities = findCities(forecast, options.city);
+  if (!cities.length) {
+    return `No sakura forecast city matched "${options.city}". Try a city, prefecture, or region such as Tokyo, Kyoto, Hokkaido, Kansai, or Tohoku.`;
+  }
+
+  const entries = cities.map((city) => ({ city, delta: daysFromTodayJst(cityFullBloomIso(city)) }));
+  const bestNow = sortByClosestDate(entries.filter((entry) => entry.delta !== null && entry.delta >= -5 && entry.delta <= 2));
+  const soon = sortByClosestDate(entries.filter((entry) => entry.delta !== null && entry.delta >= 3 && entry.delta <= 14));
+  const recentlyPast = sortByClosestDate(entries.filter((entry) => entry.delta !== null && entry.delta >= -14 && entry.delta <= -6));
+  const later = sortByClosestDate(entries.filter((entry) => entry.delta !== null && entry.delta > 14));
+  const pastSeason = sortByClosestDate(entries.filter((entry) => entry.delta !== null && entry.delta < -14));
+
+  let output = `# Sakura forecast now\n`;
+  output += `Source: ${forecast.source}. Today in Japan: ${today}. Coverage: ${cities.length} JMC observation ${cities.length === 1 ? "city" : "cities"}.\n\n`;
+
+  if (bestNow.length) {
+    output += `## Best viewing now or very soon\n`;
+    for (const entry of bestNow.slice(0, 8)) output += `${formatSakuraCityLine(entry.city, options.outputConfig)}\n`;
+    output += `\n`;
+  }
+  if (soon.length) {
+    output += `## Coming next\n`;
+    for (const entry of soon.slice(0, 8)) output += `${formatSakuraCityLine(entry.city, options.outputConfig)}\n`;
+    output += `\n`;
+  }
+  if (!bestNow.length && !soon.length && recentlyPast.length) {
+    output += `## Recently past peak\n`;
+    for (const entry of recentlyPast.slice(0, 8)) output += `${formatSakuraCityLine(entry.city, options.outputConfig)}\n`;
+    output += `\n`;
+  }
+  if (!bestNow.length && !soon.length && !recentlyPast.length && pastSeason.length) {
+    output += `## Season likely over for this area\n`;
+    for (const entry of pastSeason.slice(0, 8)) output += `${formatSakuraCityLine(entry.city, options.outputConfig)}\n`;
+    output += `\n`;
+  }
+  if (!bestNow.length && !soon.length && !recentlyPast.length && !pastSeason.length && later.length) {
+    output += `## Still ahead\n`;
+    for (const entry of later.slice(0, 8)) output += `${formatSakuraCityLine(entry.city, options.outputConfig)}\n`;
+    output += `\n`;
+  }
+
+  if (!bestNow.length && !soon.length && !recentlyPast.length && !pastSeason.length && !later.length) {
+    output += `No current full-bloom timing is available for these cities.\n\n`;
+  }
+
+  output += `## How to use this\n`;
+  output += `Use sakura_spots for exact parks and temples in a prefecture. Use weather_forecast for the city if rain could shorten the viewing window. For January-February early blossoms in Izu, use kawazu_forecast.\n`;
+  return output;
+}
+
+function formatKoyoCityLine(city: { nameEn?: string; name: string; prefNameEn?: string; prefName: string; maple?: any; ginkgo?: any }, outputConfig: OutputConfig): string {
+  const name = city.nameEn || city.name;
+  const pref = city.prefNameEn || city.prefName;
+  const maple = city.maple?.forecast ? `maple ${formatKoyoOutputDate(city.maple.forecast, outputConfig)} (${daysLabel(daysFromTodayJst(city.maple.forecast))})` : null;
+  const ginkgo = city.ginkgo?.forecast ? `ginkgo ${formatKoyoOutputDate(city.ginkgo.forecast, outputConfig)} (${daysLabel(daysFromTodayJst(city.ginkgo.forecast))})` : null;
+  return `- **${name} (${pref})** — ${[maple, ginkgo].filter(Boolean).join("; ")}`;
+}
+
+async function formatKoyoNowAnswer(options: {
+  region?: string;
+  start_date?: string;
+  end_date?: string;
+  outputConfig: OutputConfig;
+}): Promise<string> {
+  const forecast = await getKoyoForecast();
+  const today = todayJstIsoDate();
+  const regionFilter = options.region?.toLowerCase();
+  const allCities = forecast.regions.flatMap((region) => region.cities)
+    .filter((city) => !regionFilter ||
+      city.name.toLowerCase().includes(regionFilter) ||
+      city.nameEn.toLowerCase().includes(regionFilter) ||
+      city.prefName.toLowerCase().includes(regionFilter) ||
+      city.prefNameEn.toLowerCase().includes(regionFilter));
+
+  if (!allCities.length) {
+    return `No autumn leaves forecast city matched "${options.region}". Try a region, prefecture, or city such as Kyoto, Tokyo, Hokkaido, Kansai, or Tohoku.`;
+  }
+
+  if (options.start_date && options.end_date) {
+    const startDate = parseDateInput(options.start_date);
+    const endDate = parseDateInput(options.end_date);
+    if (!startDate || !endDate || endDate < startDate) {
+      return `Invalid trip dates. Use YYYY-MM-DD and make sure end_date is on or after start_date.`;
+    }
+    const matches: typeof allCities = [];
+    for (const city of allCities) {
+      const peakDates = [city.maple?.forecast, city.ginkgo?.forecast].filter(Boolean) as string[];
+      if (!peakDates.length) continue;
+      const timestamps = peakDates.map((date) => new Date(date).getTime());
+      const windowStart = new Date(Math.min(...timestamps));
+      windowStart.setDate(windowStart.getDate() - 3);
+      const windowEnd = new Date(Math.max(...timestamps));
+      windowEnd.setDate(windowEnd.getDate() + 10);
+      if (startDate <= windowEnd && endDate >= windowStart) matches.push(city);
+    }
+    let output = `# Autumn leaves forecast for ${options.start_date} to ${options.end_date}\n`;
+    output += `Source: ${forecast.source}. Last updated: ${forecast.lastUpdated}. Today in Japan: ${today}.\n\n`;
+    const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
+    if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
+    if (!matches.length) {
+      output += `No maple or ginkgo forecast city has a viewing window overlapping those dates. Typical koyo timing: Hokkaido and mountains Sep-Oct, Tohoku and Nikko Oct, Kyoto/Tokyo Nov, Kyushu late Nov-early Dec.\n`;
+      return output;
+    }
+    output += `## Best city matches\n`;
+    for (const city of matches.slice(0, 12)) output += `${formatKoyoCityLine(city, options.outputConfig)}\n`;
+    output += `\nNext step: call koyo_spots for exact temples, parks, and gardens in the matched prefecture.\n`;
+    return output;
+  }
+
+  const entries = allCities.flatMap((city) => [
+    city.maple?.forecast ? { city, delta: daysFromTodayJst(city.maple.forecast) } : null,
+    city.ginkgo?.forecast ? { city, delta: daysFromTodayJst(city.ginkgo.forecast) } : null,
+  ].filter(Boolean) as { city: (typeof allCities)[number]; delta: number | null }[]);
+  const bestNow = sortByClosestDate(entries.filter((entry) => entry.delta !== null && entry.delta >= -10 && entry.delta <= 3));
+  const soon = sortByClosestDate(entries.filter((entry) => entry.delta !== null && entry.delta >= 4 && entry.delta <= 21));
+
+  let output = `# Autumn leaves forecast now\n`;
+  output += `Source: ${forecast.source}. Last updated: ${forecast.lastUpdated}. Today in Japan: ${today}.\n`;
+  output += `Maps: maple ${preferredMapUrl(forecast.mapleForecastMapUrlEn, forecast.mapleForecastMapUrl, options.outputConfig)} | ginkgo ${preferredMapUrl(forecast.ginkgoForecastMapUrlEn, forecast.ginkgoForecastMapUrl, options.outputConfig)}\n\n`;
+  const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
+  if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
+  output += `## Typical timing guide\n`;
+  output += `Hokkaido and high mountains usually peak first from September to October. Tohoku and Nikko often peak in October. Kyoto, Tokyo, and much of central Honshu usually peak in November. Kyushu often continues into late November or early December.\n\n`;
+  if (!freshnessNote && forecast.forecastComment) output += `## JMC source commentary\n${forecast.forecastComment}\n\n`;
+
+  if (bestNow.length) {
+    output += `## Best color now or very soon\n`;
+    const seen = new Set<string>();
+    for (const entry of bestNow) {
+      const key = `${entry.city.name}-${entry.city.prefName}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      output += `${formatKoyoCityLine(entry.city, options.outputConfig)}\n`;
+      if (seen.size >= 8) break;
+    }
+    output += `\n`;
+  }
+  if (soon.length) {
+    output += `## Coming next\n`;
+    const seen = new Set<string>();
+    for (const entry of soon) {
+      const key = `${entry.city.name}-${entry.city.prefName}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      output += `${formatKoyoCityLine(entry.city, options.outputConfig)}\n`;
+      if (seen.size >= 8) break;
+    }
+    output += `\n`;
+  }
+  if (!bestNow.length && !soon.length && !freshnessNote) {
+    output += `Koyo is strongly seasonal. If this is outside Sep-Dec, use this as the forecast dataset/season guide rather than a same-week recommendation. Typical timing: Hokkaido and high mountains Sep-Oct, Tohoku/Nikko Oct, Kyoto/Tokyo Nov, Kyushu late Nov-early Dec.\n\n`;
+  }
+  output += `Next step: use koyo_spots for exact temples, parks, and gardens in a prefecture.\n`;
+  return output;
+}
+
+async function formatSeasonalOverviewAnswer(options: {
+  month?: number | null;
+  location?: string;
+  outputConfig: OutputConfig;
+}): Promise<string> {
+  const month = options.month ?? currentJstMonth();
+  const location = options.location?.toLowerCase();
+  let output = `# Japan seasonal travel overview — ${MO[month - 1]}\n\n`;
+
+  if (month >= 3 && month <= 5) {
+    output += `## Cherry blossoms\n`;
+    output += `Standard Somei-Yoshino sakura is a key live-data season from March to May. Use sakura_now for the current national picture, sakura_best_dates for travel dates, and sakura_spots for exact parks and temples.\n\n`;
+  } else if (month === 1 || month === 2) {
+    output += `## Early cherry blossoms\n`;
+    output += `January and February are Kawazu-zakura season around the Izu Peninsula. Use kawazu_forecast for live early-blossom status.\n\n`;
+  }
+
+  if (month >= 9 && month <= 12) {
+    const koyo = await getKoyoForecast();
+    output += `## Autumn leaves\n`;
+    const freshnessNote = priorSeasonKoyoNote(koyo.lastUpdated);
+    if (freshnessNote) output += `${freshnessNote}\n`;
+    output += `Use koyo_now for the current overview, koyo_best_dates for travel dates, and koyo_spots for exact temples, parks, and gardens.\n\n`;
+  }
+
+  const flowerData = STATIC_MCP.flowers;
+  if (flowerData) {
+    const flowers = ((flowerData.spots || []) as AnySpot[]).filter((spot) => {
+      const months = FLOWER_SEASON_MONTHS[spot["type"] as string] || [];
+      const locationMatch = !location ||
+        (spot["prefecture"] as string | undefined)?.toLowerCase().includes(location) ||
+        (spot["region"] as string | undefined)?.toLowerCase().includes(location);
+      return months.includes(month) && locationMatch;
+    });
+    if (flowers.length) {
+      output += `## Flowers in season\n`;
+      for (const spot of flowers.slice(0, 8)) {
+        output += `- **${spot["name"]}** (${spot["prefecture"]}) — ${spot["type"]}; peak ${spot["peakStart"] ?? "N/A"} to ${spot["peakEnd"] ?? "N/A"}\n`;
+      }
+      if (flowers.length > 8) output += `- ${flowers.length - 8} more flower spots available through flowers_spots.\n`;
+      output += `\n`;
+    }
+  }
+
+  const inSeasonFruits = FRUITS.filter((fruit) => fruit.months.includes(month));
+  if (inSeasonFruits.length) {
+    output += `## Fruit picking\n`;
+    for (const fruit of inSeasonFruits.slice(0, 8)) {
+      output += `- ${fruit.emoji} **${fruit.name}**${fruit.peak.includes(month) ? " (peak)" : ""} — best regions: ${fruit.regions.join(", ")}\n`;
+    }
+    output += `Use fruit_farms for actual farms, GPS coordinates, and booking links.\n\n`;
+  }
+
+  const festivalData = STATIC_MCP.festivals;
+  if (festivalData) {
+    const events = ((festivalData.spots || []) as AnySpot[]).filter((event) => {
+      const months = event["months"] as number[] | undefined;
+      const locationMatch = !location ||
+        (event["prefecture"] as string | undefined)?.toLowerCase().includes(location) ||
+        (event["region"] as string | undefined)?.toLowerCase().includes(location);
+      return months?.includes(month) && locationMatch;
+    });
+    if (events.length) {
+      output += `## Festivals and events\n`;
+      for (const event of events.slice(0, 8)) {
+        output += `- **${event["name"]}** (${event["prefecture"]}) — ${event["typicalDate"]}; ${event["type"]}\n`;
+      }
+      output += `Use festivals_list for official URLs, attendance notes, and coordinates.\n\n`;
+    }
+  }
+
+  if (!/## /.test(output)) {
+    output += `No strong curated seasonal category matched this month/location. Try a broader location or ask for sakura, koyo, flowers, festivals, or fruit picking specifically.\n`;
+  }
+  return output;
+}
+
+function inferSeason(question: string | undefined, startDate: string | undefined, requested: string | undefined): string {
+  if (requested && requested !== "auto") return requested;
+  const q = (question ?? "").toLowerCase();
+  if (/(sakura|cherry blossom|hanami|mankai|kawazu)/.test(q)) {
+    if (/(kawazu|early blossom|izu|february|january)/.test(q)) return "kawazu";
+    return "sakura";
+  }
+  if (/(autumn|fall foliage|koyo|momiji|maple|ginkgo|leaves|colour|color)/.test(q)) return "koyo";
+  if (/(seasonal|what.*good|things to do|activities|in season|blooming now|good now)/.test(q)) return "overview";
+  if (/(wisteria|hydrangea|lavender|sunflower|cosmos|plum|flower|blooming now)/.test(q)) return "flowers";
+  if (/(festival|matsuri|fireworks|hanabi|event)/.test(q)) return "festivals";
+  if (/(fruit|farm|picking|strawberry|grape|peach|apple|mikan)/.test(q)) return "fruit";
+  if (/(weather|rain|temperature|packing|umbrella)/.test(q)) return "weather";
+  const month = monthFromDateInput(startDate) ?? currentJstMonth();
+  if (month === 1 || month === 2) return "kawazu";
+  if (month >= 3 && month <= 5) return "sakura";
+  if (month >= 10 && month <= 12) return "koyo";
+  if (month >= 6 && month <= 8) return "festivals";
+  return "flowers";
+}
+
+const SEARCH_DOCS = [
+  {
+    id: "sakura-now",
+    title: "Current Japan Cherry Blossom Forecast",
+    url: `${SITE_URL}/cherry-blossom-forecast`,
+    keywords: "sakura cherry blossom hanami mankai bloom forecast japan kyoto tokyo osaka hokkaido tohoku jmc",
+    summary: "Live JMC sakura forecast for 48 observation cities, including bloom and full-bloom dates, actual observations, historical averages, and current status.",
+  },
+  {
+    id: "sakura-spots",
+    title: "Cherry Blossom Viewing Spots",
+    url: `${SITE_URL}/cherry-blossom-forecast#spots`,
+    keywords: "sakura spots parks temples gps kyoto tokyo viewing locations current status coordinates",
+    summary: "1,012 JMC cherry blossom viewing spots with GPS coordinates, bloom percentages, reporter observations when fresh, and prefecture-level filtering.",
+  },
+  {
+    id: "kawazu",
+    title: "Kawazu Early Cherry Blossom Forecast",
+    url: `${SITE_URL}/cherry-blossom-forecast#kawazu`,
+    keywords: "kawazu early cherry blossom izu february january deep pink",
+    summary: "Early-season Kawazu-zakura data for Izu Peninsula in January and February, including bloom percentages, full-bloom percentages, maps, and coordinates.",
+  },
+  {
+    id: "koyo-now",
+    title: "Japan Autumn Leaves Forecast",
+    url: `${SITE_URL}/autumn-leaves-forecast`,
+    keywords: "koyo autumn leaves fall foliage momiji maple ginkgo kyoto nikko hokkaido forecast japan",
+    summary: "JMC koyo forecast for maple and ginkgo timing by city, with forecast maps, regional commentary, and 687 viewing spots.",
+  },
+  {
+    id: "flowers",
+    title: "Seasonal Flower Spots in Japan",
+    url: `${SITE_URL}/#flowers`,
+    keywords: "flowers wisteria hydrangea plum lavender sunflower cosmos iris nanohana japan travel",
+    summary: "Curated non-sakura flower spots across Japan with peak windows, official URLs, notes, and GPS coordinates.",
+  },
+  {
+    id: "festivals",
+    title: "Japan Festivals, Fireworks, and Seasonal Events",
+    url: `${SITE_URL}/#festivals`,
+    keywords: "festival matsuri fireworks hanabi winter events gion nebuta sumida nagaoka japan",
+    summary: "Curated recurring events with typical dates, official URLs, attendance notes, and GPS coordinates.",
+  },
+  {
+    id: "fruit",
+    title: "Japan Fruit Picking Seasons and Farms",
+    url: `${SITE_URL}/#fruit`,
+    keywords: "fruit picking farms strawberry grape peach apple mikan yamanashi nagano japan booking",
+    summary: `Fruit season calendar for 14 fruits and ${FRUIT_FARM_LABEL} with GPS coordinates, fruit types, seasons, and booking links.`,
+  },
+  {
+    id: "mcp-install",
+    title: "Japan in Seasons MCP Server",
+    url: `${SITE_URL}/japan-seasonal-travel-mcp`,
+    keywords: "mcp model context protocol chatgpt claude cursor japan travel ai assistant seasonal data",
+    summary: "Remote and npm MCP server for AI assistants to access live Japan seasonal travel data from Japan Meteorological Corporation and JMA.",
+  },
+] as const;
+
+function searchDocs(query: string) {
+  const tokens = query.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length > 2);
+  return SEARCH_DOCS
+    .map((doc) => {
+      const haystack = `${doc.title} ${doc.keywords} ${doc.summary}`.toLowerCase();
+      const score = tokens.reduce((sum, token) => sum + (haystack.includes(token) ? 1 : 0), 0);
+      return { doc, score };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map(({ doc }) => doc);
+}
+
+async function fetchSearchDoc(id: string, outputConfig: OutputConfig) {
+  if (id === "sakura-now") {
+    return {
+      id,
+      title: "Current Japan Cherry Blossom Forecast",
+      url: `${SITE_URL}/cherry-blossom-forecast`,
+      text: await formatSakuraNowAnswer({ outputConfig }),
+      metadata: { source: "Japan Meteorological Corporation", type: "live_forecast" },
+    };
+  }
+  if (id === "koyo-now") {
+    return {
+      id,
+      title: "Japan Autumn Leaves Forecast",
+      url: `${SITE_URL}/autumn-leaves-forecast`,
+      text: await formatKoyoNowAnswer({ outputConfig }),
+      metadata: { source: "Japan Meteorological Corporation", type: "live_forecast" },
+    };
+  }
+  const doc = SEARCH_DOCS.find((entry) => entry.id === id);
+  if (!doc) return null;
+  return {
+    id: doc.id,
+    title: doc.title,
+    url: doc.url,
+    text: `${doc.summary}\n\nUse the Japan in Seasons MCP tools for live answers. Relevant tools include japan_seasonal_answer, sakura_now, sakura_forecast, sakura_spots, koyo_now, koyo_forecast, koyo_spots, flowers_spots, festivals_list, fruit_seasons, fruit_farms, and weather_forecast.`,
+    metadata: { source: "Japan in Seasons", type: "dataset_guide" },
+  };
+}
+
 // ─── Shared tool & prompt registration ───────────────────────────────────────
 
 function registerAllTools(server: McpServer, outputConfig: OutputConfig = DEFAULT_OUTPUT_CONFIG) {
-
   // ── Prompt: plan_japan_trip ──
 
   server.registerPrompt(
@@ -284,7 +804,7 @@ Use the japan-seasons-mcp tools based on the travel month:
 
 **Year-round** — Fruit picking:
 - fruit_seasons → which fruits are in season for the travel month
-- fruit_farms → 350+ farms with GPS; pass month= to auto-filter by in-season fruits
+- fruit_farms → ${FRUIT_FARM_LABEL} with GPS; pass month= to auto-filter by in-season fruits
 
 **Oct-Dec** — Autumn leaves (koyo):
 - koyo_forecast → maple & ginkgo timing, 50+ cities
@@ -372,7 +892,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       "japan-seasons://fruit-farms",
       {
         title: "Fruit Picking Farms",
-        description: "Complete list of 350+ fruit picking farms across Japan with GPS coordinates, available fruits, seasons, booking links, and access directions.",
+        description: `Complete list of ${FRUIT_FARM_LABEL} across Japan with GPS coordinates, available fruits, seasons, booking links, and access directions.`,
         mimeType: "application/json",
       },
       async (_uri) => ({
@@ -386,6 +906,194 @@ Use the japan-seasons-mcp tools based on the travel month:
   }
 
   // ── Tool: sakura_forecast ──
+
+  server.registerTool(
+    "japan_seasonal_answer",
+    {
+      title: "Answer Japan Seasonal Travel Question",
+      description: "Use this first when the user asks a broad Japan seasonal travel question, including cherry blossom forecasts, autumn leaves, flowers, festivals, fruit picking, or what is good during travel dates. This is the best entry point for natural traveler prompts because it routes to the right live dataset and returns a ready-to-use recommendation. Do not use this for hotels, flights, trains, visas, restaurants, or generic itinerary planning unrelated to seasonal timing.",
+      inputSchema: {
+        question: z.string().optional().describe("The user's natural-language question, for example 'How is the sakura forecast?', 'Where should I see autumn leaves in late November?', or 'What seasonal things are good in Japan in June?'").meta({ title: "Question" }),
+        start_date: z.string().optional().describe("Optional trip start date in YYYY-MM-DD format. Provide this when the user gives travel dates.").meta({ title: "Trip Start Date" }),
+        end_date: z.string().optional().describe("Optional trip end date in YYYY-MM-DD format. Provide this when the user gives travel dates.").meta({ title: "Trip End Date" }),
+        location: z.string().optional().describe("Optional city, prefecture, or region such as Tokyo, Kyoto, Hokkaido, Kansai, or Tohoku.").meta({ title: "Location" }),
+        season: z.enum(["auto", "overview", "sakura", "kawazu", "koyo", "flowers", "festivals", "fruit", "weather"]).optional().describe("Optional explicit season/topic. Use auto unless the user clearly asks for one topic. Use overview for broad questions about what seasonal activities are good in a month.").meta({ title: "Season Topic" }),
+      },
+      annotations: READONLY,
+    },
+    async ({ question, start_date, end_date, location, season = "auto" }) => {
+      try {
+        const inferred = inferSeason(question, start_date, season);
+        if (inferred === "sakura") {
+          return { content: [{ type: "text", text: await formatSakuraNowAnswer({ city: location, start_date, end_date, outputConfig }) }] };
+        }
+        if (inferred === "kawazu") {
+          const result = await getKawazuForecast();
+          let output = `# Kawazu early cherry blossom forecast\nSource: ${result.source}. Last updated: ${result.lastUpdated}.\n\n`;
+          output += `Kawazu-zakura is the early deep-pink cherry blossom season for January-February, centered on the Izu Peninsula.\n\n`;
+          if (result.forecastComment) output += `## JMC summary\n${result.forecastComment}\n\n`;
+          output += `## Best current spots\n`;
+          for (const spot of result.spots.slice(0, 8)) {
+            output += `- **${spot.name}** — ${spot.status}; bloom ${spot.bloomRate}%, full-bloom ${spot.fullRate}%; full bloom ${formatSakuraDate(spot.fullBloomForecast, outputConfig)}\n`;
+          }
+          output += `\nMap: ${preferredMapUrl(result.forecastMapUrlEn, result.forecastMapUrl, outputConfig)}\n`;
+          return { content: [{ type: "text", text: output }] };
+        }
+        if (inferred === "koyo") {
+          return { content: [{ type: "text", text: await formatKoyoNowAnswer({ region: location, start_date, end_date, outputConfig }) }] };
+        }
+        if (inferred === "flowers") {
+          const month = monthFromDateInput(start_date) ?? currentJstMonth();
+          const data = STATIC_MCP.flowers;
+          if (!data) return { content: [{ type: "text", text: "Flowers data not available on this instance." }], isError: true };
+          let spots: AnySpot[] = data.spots || [];
+          spots = spots.filter((spot) => {
+            const months = FLOWER_SEASON_MONTHS[spot["type"] as string] || [];
+            const locationMatch = !location || (spot["prefecture"] as string | undefined)?.toLowerCase().includes(location.toLowerCase()) || (spot["region"] as string | undefined)?.toLowerCase().includes(location.toLowerCase());
+            return months.includes(month) && locationMatch;
+          });
+          let output = `# Seasonal flowers in Japan — ${MO[month - 1]}\nSource: seasons.kooexperience.com curated dataset. ${spots.length} matching spots.\n\n`;
+          if (!spots.length) output += `No curated flower spots matched that month/location. Try a broader location or use flowers_spots for all flower categories.\n`;
+          for (const spot of spots.slice(0, 10)) {
+            output += `- **${spot["name"]}** (${spot["prefecture"]}) — ${spot["type"]}; peak ${spot["peakStart"] ?? "N/A"} to ${spot["peakEnd"] ?? "N/A"}; ${spot["url"] ?? ""}\n`;
+          }
+          return { content: [{ type: "text", text: output }] };
+        }
+        if (inferred === "festivals") {
+          const month = monthFromDateInput(start_date) ?? currentJstMonth();
+          const data = STATIC_MCP.festivals;
+          if (!data) return { content: [{ type: "text", text: "Festivals data not available on this instance." }], isError: true };
+          let events: AnySpot[] = data.spots || [];
+          events = events.filter((event) => {
+            const months = event["months"] as number[] | undefined;
+            const locationMatch = !location || (event["prefecture"] as string | undefined)?.toLowerCase().includes(location.toLowerCase()) || (event["region"] as string | undefined)?.toLowerCase().includes(location.toLowerCase());
+            return months?.includes(month) && locationMatch;
+          });
+          let output = `# Japan seasonal events — ${MO[month - 1]}\nSource: seasons.kooexperience.com curated dataset. ${events.length} matching events.\n\n`;
+          if (!events.length) output += `No curated festivals matched that month/location. Major seasons: fireworks July-August, autumn matsuri September-November, winter events January-February.\n`;
+          for (const event of events.slice(0, 10)) {
+            output += `- **${event["name"]}** (${event["prefecture"]}) — ${event["typicalDate"]}; ${event["type"]}; ${event["url"] ?? ""}\n`;
+          }
+          return { content: [{ type: "text", text: output }] };
+        }
+        if (inferred === "fruit") {
+          const month = monthFromDateInput(start_date) ?? currentJstMonth();
+          const inSeason = FRUITS.filter((fruit) => fruit.months.includes(month));
+          let output = `# Japan fruit picking — ${MO[month - 1]}\n\n`;
+          if (!inSeason.length) output += `No major fruit-picking category is in peak season in this calendar month.\n`;
+          for (const fruit of inSeason) {
+            output += `- ${fruit.emoji} **${fruit.name}**${fruit.peak.includes(month) ? " (peak)" : ""} — best regions: ${fruit.regions.join(", ")}. ${fruit.note}\n`;
+          }
+          output += `\nUse fruit_farms for actual farm listings, GPS coordinates, and booking links.\n`;
+          return { content: [{ type: "text", text: output }] };
+        }
+        if (inferred === "weather") {
+          if (!location) {
+            return { content: [{ type: "text", text: "For weather, provide a supported city such as Tokyo, Kyoto, Osaka, Sapporo, Sendai, or Fukuoka." }] };
+          }
+          const forecast = await getWeatherForecast(location);
+          let output = `# ${forecast.title}\nPublished: ${forecast.publicTime}\n\n`;
+          if (forecast.description) output += `${forecast.description}\n\n`;
+          for (const day of forecast.forecasts.slice(0, 3)) {
+            output += `- **${day.dateLabel} (${day.date})** — ${day.telop}; rain ${day.chanceOfRain.T00_06} | ${day.chanceOfRain.T06_12} | ${day.chanceOfRain.T12_18} | ${day.chanceOfRain.T18_24}\n`;
+          }
+          return { content: [{ type: "text", text: output }] };
+        }
+        if (inferred === "overview") {
+          return { content: [{ type: "text", text: await formatSeasonalOverviewAnswer({ month: monthFromDateInput(start_date), location, outputConfig }) }] };
+        }
+        return { content: [{ type: "text", text: await formatSakuraNowAnswer({ city: location, start_date, end_date, outputConfig }) }] };
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "sakura_now",
+    {
+      title: "Sakura Forecast Now",
+      description: "Use this first for broad cherry blossom prompts such as 'How is the sakura forecast?', 'Is sakura blooming now?', 'Where should I see cherry blossoms this week?', or 'How is Kyoto sakura looking?'. Returns a concise current answer from live Japan Meteorological Corporation forecast and observation data, with next-step guidance for exact parks and weather. Do not use this for autumn leaves, non-sakura flowers, hotels, trains, or generic itinerary planning.",
+      inputSchema: {
+        city: z.string().optional().describe("Optional city, prefecture, or region filter such as Tokyo, Kyoto, Hokkaido, Kansai, or Tohoku. Omit for nationwide status.").meta({ title: "City or Region" }),
+        start_date: z.string().optional().describe("Optional trip start date in YYYY-MM-DD format. Use with end_date when the user gives travel dates.").meta({ title: "Trip Start Date" }),
+        end_date: z.string().optional().describe("Optional trip end date in YYYY-MM-DD format. Use with start_date when the user gives travel dates.").meta({ title: "Trip End Date" }),
+      },
+      annotations: READONLY,
+    },
+    async ({ city, start_date, end_date }) => {
+      try {
+        return { content: [{ type: "text", text: await formatSakuraNowAnswer({ city, start_date, end_date, outputConfig }) }] };
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "koyo_now",
+    {
+      title: "Autumn Leaves Forecast Now",
+      description: "Use this first for broad autumn leaves prompts such as 'How are autumn leaves looking?', 'Where is koyo good now?', 'Kyoto autumn leaves forecast', or 'Where should I see fall foliage in Japan?'. Returns a concise current answer from live Japan Meteorological Corporation maple and ginkgo forecast data. Do not use this for cherry blossoms, fruit picking, hotels, trains, or generic itinerary planning.",
+      inputSchema: {
+        region: z.string().optional().describe("Optional city, prefecture, or region filter such as Kyoto, Tokyo, Hokkaido, Kansai, Nikko, or Tohoku. Omit for nationwide status.").meta({ title: "Region or Prefecture" }),
+        start_date: z.string().optional().describe("Optional trip start date in YYYY-MM-DD format. Use with end_date when the user gives travel dates.").meta({ title: "Trip Start Date" }),
+        end_date: z.string().optional().describe("Optional trip end date in YYYY-MM-DD format. Use with start_date when the user gives travel dates.").meta({ title: "Trip End Date" }),
+      },
+      annotations: READONLY,
+    },
+    async ({ region, start_date, end_date }) => {
+      try {
+        return { content: [{ type: "text", text: await formatKoyoNowAnswer({ region, start_date, end_date, outputConfig }) }] };
+      } catch (e: any) {
+        return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
+      }
+    }
+  );
+
+  server.registerTool(
+    "search",
+    {
+      title: "Search Japan in Seasons",
+      description: "Use this for ChatGPT/deep-research style retrieval over Japan in Seasons. Searches live seasonal-travel dataset guides and returns result IDs for fetch. Use for questions about Japan cherry blossom forecasts, autumn leaves, seasonal flowers, festivals, fruit picking, weather, or the MCP server itself. Do not use for hotels, flights, trains, visas, or restaurants.",
+      inputSchema: {
+        query: z.string().describe("Natural-language search query, for example 'Japan cherry blossom forecast', 'Kyoto autumn leaves', or 'fruit picking in Japan in September'.").meta({ title: "Query" }),
+      },
+      annotations: READONLY,
+    },
+    async ({ query }) => {
+      const results = searchDocs(query).slice(0, 8).map((doc) => ({
+        id: doc.id,
+        title: doc.title,
+        url: doc.url,
+        text: doc.summary,
+      }));
+      return { content: [{ type: "text", text: JSON.stringify({ results }) }] };
+    }
+  );
+
+  server.registerTool(
+    "fetch",
+    {
+      title: "Fetch Japan in Seasons Result",
+      description: "Use this after search to retrieve a full Japan in Seasons result with citation URL and text. For live sakura or autumn leaves result IDs, this fetches the current forecast answer from live JMC data.",
+      inputSchema: {
+        id: z.string().describe("Result ID returned by search, such as sakura-now, koyo-now, flowers, festivals, fruit, or mcp-install.").meta({ title: "Result ID" }),
+      },
+      annotations: READONLY,
+    },
+    async ({ id }) => {
+      try {
+        const doc = await fetchSearchDoc(id, outputConfig);
+        if (!doc) {
+          return { content: [{ type: "text", text: JSON.stringify({ id, title: "Not found", text: `No Japan in Seasons result found for ID "${id}".`, url: SITE_URL }) }], isError: true };
+        }
+        return { content: [{ type: "text", text: JSON.stringify(doc) }] };
+      } catch (e: any) {
+        return { content: [{ type: "text", text: JSON.stringify({ id, title: "Error", text: e.message, url: SITE_URL }) }], isError: true };
+      }
+    }
+  );
 
   server.registerTool(
     "sakura_forecast",
@@ -632,7 +1340,10 @@ Use the japan-seasons-mcp tools based on the travel month:
         }
 
         let output = `# Autumn Leaves (Koyo) Forecast\nSource: ${forecast.source}\nLast updated: ${forecast.lastUpdated}\n\n`;
-        if (forecast.forecastComment) output += `## Summary\n${forecast.forecastComment}\n\n`;
+        const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
+        if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
+        output += `## Typical timing guide\nHokkaido and high mountains usually peak first from September to October. Tohoku and Nikko often peak in October. Kyoto, Tokyo, and much of central Honshu usually peak in November. Kyushu often continues into late November or early December.\n\n`;
+        if (!freshnessNote && forecast.forecastComment) output += `## JMC source commentary\n${forecast.forecastComment}\n\n`;
         output += `## Maps\n- Maple: ${preferredMapUrl(forecast.mapleForecastMapUrlEn, forecast.mapleForecastMapUrl, outputConfig)}\n- Ginkgo: ${preferredMapUrl(forecast.ginkgoForecastMapUrlEn, forecast.ginkgoForecastMapUrl, outputConfig)}\n\n`;
         for (const forecastRegion of filteredRegions) {
           output += `## ${forecastRegion.name}\n`;
@@ -689,6 +1400,8 @@ Use the japan-seasons-mcp tools based on the travel month:
             const r = results[i];
             if (r.status === "rejected") continue;
             const result = r.value;
+            const freshnessNote = priorSeasonKoyoSpotNote(result.spots);
+            if (freshnessNote && i === 0) output += `**Data freshness:** ${freshnessNote}\n\n`;
             // Show top 3 spots per prefecture by popularity
             const topSpots = [...result.spots].sort((a, b) => b.popularity - a.popularity).slice(0, 3);
             if (topSpots.length === 0) continue;
@@ -710,6 +1423,8 @@ Use the japan-seasons-mcp tools based on the travel month:
         }
         const result = await getKoyoSpots(prefCode);
         let output = `# Autumn Leaves — ${result.prefecture}\nSource: ${result.source}\nTotal spots: ${result.spots.length}\n\n`;
+        const freshnessNote = priorSeasonKoyoSpotNote(result.spots);
+        if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
         for (const spot of result.spots) {
           output += `### ${spot.name}${spot.nameReading ? ` (${spot.nameReading})` : ""}\n`;
           output += `- **${spot.status}**\n`;
@@ -767,7 +1482,10 @@ Use the japan-seasons-mcp tools based on the travel month:
           return { content: [{ type: "text", text: `No koyo cities in colour during ${start_date} to ${end_date}.\n\nTypical season: Hokkaido/mountains Sep–Oct, Tohoku/Nikko Oct, Kanto/Kyoto mid-Oct to Nov, Kyushu Nov–early Dec.` }] };
         }
 
-        let output = `# Best cities for koyo: ${start_date} to ${end_date}\n\n${matches.length} cities with autumn colour in your window.\nUse koyo_spots to find specific parks and temples.\n\n`;
+        let output = `# Best cities for koyo: ${start_date} to ${end_date}\n\n`;
+        const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
+        if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
+        output += `${matches.length} cities with autumn colour in your window.\nUse koyo_spots to find specific parks and temples.\n\n`;
         for (const m of matches) {
           output += `### ${m.name} (${m.pref})\n`;
           if (m.mapleDate) output += `- 🍁 Maple peak: ${formatKoyoOutputDate(m.mapleDate, outputConfig)}\n`;
@@ -1060,7 +1778,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       try {
         const data = STATIC_MCP.farms;
         if (!data) {
-          return { content: [{ type: "text", text: "Farm data not available on this instance. The hosted version at seasons.kooexperience.com has 350+ farms." }], isError: true };
+          return { content: [{ type: "text", text: "Farm data not available on this instance. The hosted version at seasons.kooexperience.com includes the fruit-picking farm directory." }], isError: true };
         }
         let farms: AnySpot[] = data.spots || [];
 
@@ -1171,6 +1889,16 @@ const stats = {
   },
 };
 
+function recordToolCallsFromBody(parsedBody: any): void {
+  const messages = Array.isArray(parsedBody) ? parsedBody : [parsedBody];
+  for (const message of messages) {
+    if (message?.method === "tools/call") {
+      const toolName = typeof message.params?.name === "string" ? message.params.name : "unknown";
+      stats.recordToolCall(toolName);
+    }
+  }
+}
+
 // Log stats every hour
 setInterval(() => {
   logger.info(`Stats: ${JSON.stringify(stats.toJSON())}`);
@@ -1258,7 +1986,7 @@ async function startHttpServer() {
     // CORS
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, mcp-session-id");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, mcp-session-id, x-date-style, x-temperature-unit, x-include-coordinates, x-map-language");
     res.setHeader("Access-Control-Expose-Headers", "mcp-session-id");
     if (req.method === "OPTIONS") { res.writeHead(204).end(); return; }
 
@@ -1302,7 +2030,27 @@ async function startHttpServer() {
       // Reuse existing session
       if (sessionId && transports.has(sessionId)) {
         sessionLastActive.set(sessionId, Date.now());
-        await transports.get(sessionId)!.handleRequest(req, res);
+        if (req.method === "POST") {
+          const MAX_BODY_BYTES = 1_048_576;
+          const chunks: Buffer[] = [];
+          let bodyBytes = 0;
+          for await (const chunk of req) {
+            bodyBytes += (chunk as Buffer).length;
+            if (bodyBytes > MAX_BODY_BYTES) {
+              res.writeHead(413, { "Content-Type": "application/json" });
+              res.end(JSON.stringify({ error: "Request body too large." }));
+              return;
+            }
+            chunks.push(chunk as Buffer);
+          }
+          const bodyStr = Buffer.concat(chunks).toString();
+          let parsedBody: any;
+          try { parsedBody = JSON.parse(bodyStr); } catch { parsedBody = null; }
+          recordToolCallsFromBody(parsedBody);
+          await transports.get(sessionId)!.handleRequest(req, res, parsedBody);
+        } else {
+          await transports.get(sessionId)!.handleRequest(req, res);
+        }
         return;
       }
 
@@ -1334,6 +2082,7 @@ async function startHttpServer() {
 
       const isInit = parsedBody?.method === "initialize" ||
         (Array.isArray(parsedBody) && parsedBody.some((m: any) => m.method === "initialize"));
+      recordToolCallsFromBody(parsedBody);
       const outputConfig = getOutputConfig(url.searchParams, req.headers);
 
       // For non-init requests without session ID (e.g. Smithery probes),
