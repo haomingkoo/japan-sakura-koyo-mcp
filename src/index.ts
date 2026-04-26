@@ -26,6 +26,7 @@ import {
   SAKURA_FULL_BLOOM_MANKAI_MIN,
   SAKURA_SPOT_MODEL_NOTE,
   type SakuraCity,
+  type SakuraSpot,
 } from "./lib/sakura-forecast.js";
 import { getKoyoForecast, getKoyoSpots, formatDate as formatKoyoDate } from "./lib/koyo.js";
 import { getWeatherForecast } from "./lib/weather.js";
@@ -242,7 +243,7 @@ Use this server when the user needs current timing or locations for cherry bloss
 
 Tool routing:
 - Use japan_seasonal_answer first for broad Japan seasonal-travel questions, ambiguous "what is good now?" prompts, trip-date prompts, or when the user asks for an answer rather than raw data.
-- Use sakura_now first for broad or current cherry blossom prompts such as "how is the sakura forecast?", "is sakura blooming now?", or "where is best for cherry blossoms this week?".
+- Use sakura_now first for broad or current cherry blossom prompts such as "how is the sakura forecast?", "is sakura blooming now?", or "where should I view sakura today?". It returns city timing plus a short list of specific viewing spots when current spot data is available.
 - Use sakura_forecast for big-picture sakura timing, bloom progress, and city comparisons.
 - Use sakura_best_dates when the user gives travel dates and wants the best sakura cities in that window, then use sakura_spots for exact parks and temples.
 - Use kawazu_forecast for January-February cherry blossom requests or when the user mentions Kawazu-zakura, early blossoms, or Izu.
@@ -368,6 +369,73 @@ function formatSakuraCityLine(city: SakuraCity, outputConfig: OutputConfig): str
   return `- **${city.cityName} (${city.prefName})** — ${city.status}; bloom ${formatSakuraDate(bloom, outputConfig)} ${bloomLabel}, full bloom ${formatSakuraDate(full, outputConfig)} ${fullLabel} (${daysLabel(fullDelta)})`;
 }
 
+const SAKURA_SPOT_PHASE_SCORE: Record<SakuraSpot["phase"], number> = {
+  dormant: 0,
+  buds: 10,
+  bud_swell: 20,
+  bud_open: 35,
+  starting: 55,
+  blooming: 80,
+  peak: 100,
+  past_peak: 65,
+  falling: 45,
+  ended: 0,
+};
+
+function sakuraSpotSuggestionScore(spot: SakuraSpot): number {
+  const fullDelta = daysFromTodayJst(spot.fullBloomForecast);
+  let score = SAKURA_SPOT_PHASE_SCORE[spot.phase] ?? 0;
+  if (spot.statusSource === "observation") score += 12;
+  if (spot.fullRate >= SAKURA_FULL_BLOOM_MANKAI_MIN) score += 10;
+  else score += Math.min(spot.fullRate, SAKURA_FULL_BLOOM_MANKAI_MIN) / 10;
+  if (fullDelta !== null) {
+    score -= Math.abs(fullDelta) * 2;
+    if (fullDelta < -10) score -= 35;
+    if (fullDelta > 10) score -= 20;
+  }
+  return score;
+}
+
+function shouldSuggestSakuraSpot(spot: SakuraSpot): boolean {
+  const fullDelta = daysFromTodayJst(spot.fullBloomForecast);
+  if (spot.phase === "ended" || spot.phase === "dormant") return false;
+  if (["peak", "blooming", "past_peak", "falling"].includes(spot.phase)) return true;
+  if (fullDelta !== null && fullDelta >= -7 && fullDelta <= 7) return true;
+  return spot.bloomRate >= 85 || spot.fullRate > 0;
+}
+
+function formatSakuraSpotSuggestionLine(spot: SakuraSpot, outputConfig: OutputConfig): string {
+  const romaji = spot.nameRomaji && spot.nameRomaji !== spot.name ? ` (${spot.nameRomaji})` : "";
+  const fullDelta = daysFromTodayJst(spot.fullBloomForecast);
+  const full = spot.fullBloomForecast ? `; full bloom ${formatSakuraDate(spot.fullBloomForecast, outputConfig)} (${daysLabel(fullDelta)})` : "";
+  const map = outputConfig.includeCoordinates ? `; map ${mapsUrl(spot.lat, spot.lon)}` : "";
+  return `- **${spot.name}${romaji}** — ${spot.displayStatus}; bloom ${spot.bloomRate}%, full-bloom ${spot.fullRate}%${full}${map}`;
+}
+
+async function formatSakuraSpotPreview(
+  cities: SakuraCity[],
+  outputConfig: OutputConfig,
+  heading = "Specific viewing spots",
+): Promise<string> {
+  const prefCodes = Array.from(new Set(cities.map((city) => city.prefCode).filter(Boolean))).slice(0, 2);
+  if (!prefCodes.length) return "";
+
+  const results = await Promise.allSettled(prefCodes.map((prefCode) => getSakuraSpots(prefCode)));
+  const candidates = results
+    .filter((result): result is PromiseFulfilledResult<Awaited<ReturnType<typeof getSakuraSpots>>> => result.status === "fulfilled")
+    .flatMap((result) => result.value.spots)
+    .filter(shouldSuggestSakuraSpot)
+    .sort((a, b) => sakuraSpotSuggestionScore(b) - sakuraSpotSuggestionScore(a))
+    .slice(0, 5);
+
+  if (!candidates.length) return "";
+
+  let output = `## ${heading}\n`;
+  for (const spot of candidates) output += `${formatSakuraSpotSuggestionLine(spot, outputConfig)}\n`;
+  output += `\nUse sakura_spots with the prefecture for the full park and temple list.\n\n`;
+  return output;
+}
+
 async function formatSakuraNowAnswer(options: {
   city?: string;
   start_date?: string;
@@ -394,7 +462,9 @@ async function formatSakuraNowAnswer(options: {
     for (const city of sortByClosestDate(matches.map((city) => ({ city, delta: daysFromTodayJst(cityFullBloomIso(city)) }))).slice(0, 10)) {
       output += `${formatSakuraCityLine(city.city, options.outputConfig)}\n`;
     }
-    output += `\nNext step: call sakura_spots for the matched prefecture, then weather_forecast if rain could affect petals.\n`;
+    output += `\n`;
+    output += await formatSakuraSpotPreview(matches.slice(0, 3), options.outputConfig, "Specific viewing spots to check");
+    output += `Next step: call sakura_spots for the matched prefecture to get every listed park and temple, then weather_forecast if rain could affect petals.\n`;
     return output;
   }
 
@@ -444,8 +514,15 @@ async function formatSakuraNowAnswer(options: {
     output += `No current full-bloom timing is available for these cities.\n\n`;
   }
 
+  const spotCandidateEntries = bestNow.length ? bestNow
+    : soon.length ? soon
+      : recentlyPast.length ? recentlyPast
+        : [];
+  const spotCandidateCities = spotCandidateEntries.slice(0, 3).map((entry) => entry.city);
+  output += await formatSakuraSpotPreview(spotCandidateCities, options.outputConfig);
+
   output += `## How to use this\n`;
-  output += `Use sakura_spots for exact parks and temples in a prefecture. Use weather_forecast for the city if rain could shorten the viewing window. For January-February early blossoms in Izu, use kawazu_forecast.\n`;
+  output += `Use sakura_spots for all exact parks and temples in a prefecture. Use weather_forecast for the city if rain could shorten the viewing window. For January-February early blossoms in Izu, use kawazu_forecast.\n`;
   return output;
 }
 
@@ -1038,7 +1115,7 @@ Use the japan-seasons-mcp tools based on the travel month:
     "sakura_now",
     {
       title: "Sakura Forecast Now",
-      description: "Use this first for broad cherry blossom prompts such as 'How is the sakura forecast?', 'Is sakura blooming now?', 'Where should I see cherry blossoms this week?', or 'How is Kyoto sakura looking?'. Returns a concise current answer from live Japan Meteorological Corporation forecast and observation data, with next-step guidance for exact parks and weather. Do not use this for autumn leaves, non-sakura flowers, hotels, trains, or generic itinerary planning.",
+      description: "Use this first for broad cherry blossom prompts such as 'How is the sakura forecast?', 'Is sakura blooming now?', 'Where should I view sakura today?', 'Where should I see cherry blossoms this week?', or 'How is Kyoto sakura looking?'. Returns a concise current answer from live Japan Meteorological Corporation forecast and observation data, including specific viewing spot suggestions when current spot data is available, plus next-step guidance for the full park list and weather. Do not use this for autumn leaves, non-sakura flowers, hotels, trains, or generic itinerary planning.",
       inputSchema: {
         city: z.string().optional().describe("Optional city, prefecture, or region filter such as Tokyo, Kyoto, Hokkaido, Kansai, or Tohoku. Omit for nationwide status.").meta({ title: "City or Region" }),
         start_date: z.string().optional().describe("Optional trip start date in YYYY-MM-DD format. Use with end_date when the user gives travel dates.").meta({ title: "Trip Start Date" }),

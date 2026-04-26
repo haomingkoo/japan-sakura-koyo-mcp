@@ -163,7 +163,7 @@ Use this when someone asks a normal question instead of naming a dataset: "How i
 
 **`sakura_now`** — current cherry blossom answer
 
-The best first call for broad sakura prompts. It summarizes what is good now, what is coming next, or what matched the user's trip dates, using live JMC forecast/observation data.
+The best first call for broad sakura prompts. It summarizes what is good now, what is coming next, or what matched the user's trip dates, using live JMC forecast/observation data, and includes a short list of specific viewing spots when spot data is available.
 
 **`koyo_now`** — current autumn leaves answer
 
