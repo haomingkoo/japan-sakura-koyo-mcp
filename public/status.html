@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, follow">
+  <title>{{CONNECTOR_NAME}} Status</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: #ffffff;
+      --text: #172033;
+      --muted: #667085;
+      --line: #d8dee8;
+      --ok: #15803d;
+      --warn: #b45309;
+      --bad: #b91c1c;
+      --accent: #0f766e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    main {
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+    header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    h1 {
+      margin: 0 0 4px;
+      font-size: clamp(1.4rem, 2.5vw, 2rem);
+      letter-spacing: 0;
+    }
+    p { margin: 0; color: var(--muted); }
+    a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    a:hover { text-decoration: underline; }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      padding: 6px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--panel);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--warn);
+    }
+    .status-ok .dot { background: var(--ok); }
+    .status-bad .dot { background: var(--bad); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+    .metric, .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .metric {
+      padding: 14px;
+      min-height: 92px;
+    }
+    .label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .value {
+      margin-top: 8px;
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+    .panel {
+      margin-top: 14px;
+      padding: 16px;
+    }
+    .panel h2 {
+      margin: 0 0 12px;
+      font-size: 1rem;
+      letter-spacing: 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    th, td {
+      padding: 10px 0;
+      border-top: 1px solid var(--line);
+      text-align: left;
+    }
+    th:last-child, td:last-child { text-align: right; }
+    code {
+      display: inline-block;
+      max-width: 100%;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: #eef2f7;
+      color: #344054;
+      overflow-wrap: anywhere;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: 180px minmax(0, 1fr);
+      gap: 8px 14px;
+      font-size: 0.9rem;
+    }
+    .meta div:nth-child(odd) {
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .empty {
+      padding: 18px 0 4px;
+      color: var(--muted);
+    }
+    .error {
+      color: var(--bad);
+      font-weight: 700;
+    }
+    @media (max-width: 760px) {
+      header { flex-direction: column; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .meta { grid-template-columns: 1fr; }
+      .meta div:nth-child(even) { margin-bottom: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>{{CONNECTOR_NAME}} Status</h1>
+        <p>First-party health and tool-call counters from <code>/health</code>.</p>
+      </div>
+      <div class="status-pill" id="status-pill"><span class="dot"></span><span id="status-text">Checking</span></div>
+    </header>
+
+    <section class="grid" aria-label="Health metrics">
+      <div class="metric"><div class="label">Version</div><div class="value" id="version">-</div></div>
+      <div class="metric"><div class="label">Uptime</div><div class="value" id="uptime">-</div></div>
+      <div class="metric"><div class="label">Requests</div><div class="value" id="requests">-</div></div>
+      <div class="metric"><div class="label">Tool Calls</div><div class="value" id="tool-calls">-</div></div>
+    </section>
+
+    <section class="panel">
+      <h2>Runtime</h2>
+      <div class="meta">
+        <div>Server</div><div id="server">-</div>
+        <div>Started</div><div id="started">-</div>
+        <div>Active sessions</div><div id="sessions">-</div>
+        <div>Unique users</div><div id="users">-</div>
+        <div>MCP endpoint</div><div><code>{{MCP_ENDPOINT}}</code></div>
+        <div>Last checked</div><div id="checked">-</div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Tool Calls By Tool</h2>
+      <table>
+        <thead><tr><th>Tool</th><th>Calls</th></tr></thead>
+        <tbody id="tool-table"><tr><td colspan="2" class="empty">No tool calls since this server instance started.</td></tr></tbody>
+      </table>
+    </section>
+
+    <section class="panel">
+      <h2>Registry Note</h2>
+      <p>Smithery and Glama counters only move when calls are routed through their own gateway or inspector. This page shows calls that reached the live MCP server.</p>
+    </section>
+  </main>
+
+  <script>
+    const numberFmt = new Intl.NumberFormat("en");
+    const pill = document.getElementById("status-pill");
+    const statusText = document.getElementById("status-text");
+
+    function setText(id, value) {
+      document.getElementById(id).textContent = value;
+    }
+
+    function formatDuration(seconds) {
+      if (!Number.isFinite(seconds)) return "-";
+      const days = Math.floor(seconds / 86400);
+      const hours = Math.floor((seconds % 86400) / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
+    }
+
+    function setStatus(kind, text) {
+      pill.classList.remove("status-ok", "status-bad");
+      if (kind) pill.classList.add(kind);
+      statusText.textContent = text;
+    }
+
+    function renderTools(toolCalls) {
+      const tbody = document.getElementById("tool-table");
+      const rows = Object.entries(toolCalls || {}).sort((a, b) => b[1] - a[1]);
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="2" class="empty">No tool calls since this server instance started.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(([tool, count]) =>
+        `<tr><td><code>${tool}</code></td><td>${numberFmt.format(count)}</td></tr>`
+      ).join("");
+    }
+
+    async function refresh() {
+      try {
+        const response = await fetch("/health", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        setStatus(data.status === "ok" ? "status-ok" : "status-bad", data.status || "Unknown");
+        setText("version", data.version || "-");
+        setText("uptime", formatDuration(data.uptime));
+        setText("requests", numberFmt.format(data.totalRequests || 0));
+        setText("tool-calls", numberFmt.format(data.totalToolCalls || 0));
+        setText("server", data.server || "-");
+        setText("started", data.startedAt ? new Date(data.startedAt).toLocaleString() : "-");
+        setText("sessions", numberFmt.format(data.activeSessions || 0));
+        setText("users", numberFmt.format(data.uniqueUsers || 0));
+        setText("checked", new Date().toLocaleString());
+        renderTools(data.toolCalls);
+      } catch (error) {
+        setStatus("status-bad", "Unavailable");
+        setText("checked", new Date().toLocaleString());
+        document.getElementById("tool-table").innerHTML =
+          `<tr><td colspan="2" class="error">Unable to load /health: ${String(error.message || error)}</td></tr>`;
+      }
+    }
+
+    refresh();
+    setInterval(refresh, 15000);
+  </script>
+</body>
+</html>

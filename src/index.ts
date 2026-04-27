@@ -207,6 +207,8 @@ const STATIC_FILE_MAP: Record<string, { file: string; mime: string }> = {
   "/robots.txt":    { file: "robots.txt",                    mime: "text/plain; charset=utf-8" },
   "/llms.txt":      { file: "llms.txt",                      mime: "text/plain; charset=utf-8" },
   "/og-image.png":  { file: "og-image.png",                  mime: "image/png" },
+  "/status":        { file: "status.html",                   mime: "text/html; charset=utf-8" },
+  "/status/":       { file: "status.html",                   mime: "text/html; charset=utf-8" },
   "/cherry-blossom-forecast":  { file: "cherry-blossom-forecast.html",  mime: "text/html; charset=utf-8" },
   "/cherry-blossom-forecast/": { file: "cherry-blossom-forecast.html",  mime: "text/html; charset=utf-8" },
   "/autumn-leaves-forecast":   { file: "autumn-leaves-forecast.html",   mime: "text/html; charset=utf-8" },
@@ -256,6 +258,7 @@ function SITEMAP_XML(): string {
     { loc: SAKURA_FORECAST_TEXT_URL, priority: "0.9" },
     { loc: `${SITE_URL}/autumn-leaves-forecast`, priority: "0.95" },
     { loc: `${SITE_URL}/japan-seasonal-travel-mcp`, priority: "0.9" },
+    { loc: `${SITE_URL}/status`, priority: "0.4" },
     { loc: `${SITE_URL}/llms.txt`, priority: "0.5" },
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>

@@ -28,6 +28,7 @@ const publicTemplates = [
   "public/japan-seasonal-travel-mcp.html",
   "public/cherry-blossom-forecast.html",
   "public/autumn-leaves-forecast.html",
+  "public/status.html",
   "public/llms.txt",
   "public/robots.txt",
 ];
