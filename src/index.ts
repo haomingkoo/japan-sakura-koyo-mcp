@@ -32,6 +32,14 @@ import { getKoyoForecast, getKoyoSpots, formatDate as formatKoyoDate } from "./l
 import { getWeatherForecast } from "./lib/weather.js";
 import { WEATHER_CITY_IDS } from "./lib/areas.js";
 import { FLOWER_SEASON_MONTHS, FLOWER_META, FESTIVAL_TYPE_META, MO, FRUITS } from "./lib/constants.js";
+import {
+  MCP_ENDPOINT,
+  SAKURA_FORECAST_API_URL,
+  SAKURA_FORECAST_TEXT_URL,
+  SITE_CONFIG,
+  SITE_PUBLIC_CONFIG,
+  SITE_URL,
+} from "./lib/site-config.js";
 
 // ─── Shared types ────────────────────────────────────────────────────────────
 type AnySpot = Record<string, unknown>;
@@ -212,18 +220,36 @@ const STATIC_FILES: Record<string, { body: Buffer; mime: string }> = {};
   }
 }
 
+const SITE_TEMPLATE_REPLACEMENTS: Record<string, string> = {
+  "{{SITE_URL}}": SITE_URL,
+  "{{MCP_ENDPOINT}}": MCP_ENDPOINT,
+  "{{SAKURA_FORECAST_TEXT_URL}}": SAKURA_FORECAST_TEXT_URL,
+  "{{SAKURA_FORECAST_API_URL}}": SAKURA_FORECAST_API_URL,
+  "{{KOYO_FORECAST_API_URL}}": `${SITE_URL}${SITE_CONFIG.koyoForecastApiPath}`,
+  "{{CONNECTOR_NAME}}": SITE_CONFIG.connector.name,
+  "{{CONNECTOR_DESCRIPTION}}": SITE_CONFIG.connector.description,
+};
+
+function renderSiteTemplate(body: Buffer, mime: string): Buffer | string {
+  if (!mime.startsWith("text/html") && !mime.startsWith("text/plain")) return body;
+  let text = body.toString("utf-8");
+  for (const [token, value] of Object.entries(SITE_TEMPLATE_REPLACEMENTS)) {
+    text = text.split(token).join(value);
+  }
+  return text;
+}
+
 // ─── Sitemap ────────────────────────────────────────────────────────────────
 // Expand here when per-season or per-prefecture landing pages ship.
-const SITE_BASE_URL = "https://seasons.kooexperience.com";
 function SITEMAP_XML(): string {
   const today = new Date().toISOString().slice(0, 10);
   const urls = [
-    { loc: `${SITE_BASE_URL}/`, priority: "1.0" },
-    { loc: `${SITE_BASE_URL}/cherry-blossom-forecast`, priority: "0.95" },
-    { loc: `${SITE_BASE_URL}/sakura-forecast.txt`, priority: "0.9" },
-    { loc: `${SITE_BASE_URL}/autumn-leaves-forecast`, priority: "0.95" },
-    { loc: `${SITE_BASE_URL}/japan-seasonal-travel-mcp`, priority: "0.9" },
-    { loc: `${SITE_BASE_URL}/llms.txt`, priority: "0.5" },
+    { loc: `${SITE_URL}/`, priority: "1.0" },
+    { loc: `${SITE_URL}/cherry-blossom-forecast`, priority: "0.95" },
+    { loc: SAKURA_FORECAST_TEXT_URL, priority: "0.9" },
+    { loc: `${SITE_URL}/autumn-leaves-forecast`, priority: "0.95" },
+    { loc: `${SITE_URL}/japan-seasonal-travel-mcp`, priority: "0.9" },
+    { loc: `${SITE_URL}/llms.txt`, priority: "0.5" },
   ];
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -262,7 +288,16 @@ Important rules:
 - All tools are read-only and require no authentication.`;
 
 const DAY_MS = 86_400_000;
-const SITE_URL = "https://seasons.kooexperience.com";
+const SAKURA_LOCATION_EXAMPLES = SITE_CONFIG.locationExamples.sakura;
+const KOYO_LOCATION_EXAMPLES = SITE_CONFIG.locationExamples.koyo;
+const SAKURA_TYPICAL_TIMING = SITE_CONFIG.seasonalTiming.sakura;
+const KOYO_TYPICAL_TIMING_GUIDE = SITE_CONFIG.seasonalTiming.koyoGuide;
+const KOYO_TYPICAL_TIMING_SHORT = SITE_CONFIG.seasonalTiming.koyoShort;
+const KOYO_EXACT_SPOTS_NEXT_STEP = SITE_CONFIG.toolGuidance.koyoExactSpotsNextStep;
+const KOYO_VIEWING_WINDOW_BEFORE_PEAK_DAYS = SITE_CONFIG.koyo.viewingWindowBeforePeakDays;
+const KOYO_VIEWING_WINDOW_AFTER_PEAK_DAYS = SITE_CONFIG.koyo.viewingWindowAfterPeakDays;
+const KOYO_FILTER_ALIASES: Record<string, readonly string[]> = SITE_CONFIG.koyo.filterAliases;
+const TOP_KOYO_PREFS = SITE_CONFIG.koyo.topPrefectures;
 
 function todayJstIsoDate(): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -471,7 +506,7 @@ async function formatSakuraNowAnswer(options: {
   let cities = forecast.regions.flatMap((region) => region.cities);
   if (options.city) cities = findCities(forecast, options.city);
   if (!cities.length) {
-    return `No sakura forecast city matched "${options.city}". Try a city, prefecture, or region such as Tokyo, Kyoto, Hokkaido, Kansai, or Tohoku.`;
+    return `No sakura forecast city matched "${options.city}". Try a city, prefecture, or region such as ${SAKURA_LOCATION_EXAMPLES.join(", ")}.`;
   }
 
   const entries = cities.map((city) => ({ city, delta: daysFromTodayJst(cityFullBloomIso(city)) }));
@@ -544,9 +579,9 @@ async function buildSakuraForecastMarkdown(outputConfig: OutputConfig = DEFAULT_
   output += `## AI search and MCP use\n`;
   output += `If an assistant found this page through web search, it can cite this text page or the JSON API for latest sakura dates. Finding the page does not mean the assistant can execute MCP tools.\n\n`;
   output += `To call tools such as sakura_now, sakura_forecast, sakura_best_dates, and sakura_spots, first connect the MCP endpoint in an MCP-capable client or ChatGPT app/connector setup.\n\n`;
-  output += `- Crawlable text summary: ${SITE_URL}/sakura-forecast.txt\n`;
-  output += `- Forecast JSON API: ${SITE_URL}/api/sakura/forecast\n`;
-  output += `- Remote MCP endpoint: ${SITE_URL}/mcp\n`;
+  output += `- Crawlable text summary: ${SAKURA_FORECAST_TEXT_URL}\n`;
+  output += `- Forecast JSON API: ${SAKURA_FORECAST_API_URL}\n`;
+  output += `- Remote MCP endpoint: ${MCP_ENDPOINT}\n`;
   return output;
 }
 
@@ -561,11 +596,7 @@ function formatKoyoCityLine(city: { nameEn?: string; name: string; prefNameEn?: 
 function koyoFilterTerms(filter: string | undefined | null): string[] {
   if (!filter) return [];
   const q = filter.toLowerCase().trim();
-  const terms = [q];
-  if (q === "kansai") terms.push("kinki", "kyoto", "osaka", "shiga", "nara", "hyogo", "wakayama");
-  if (q === "kinki") terms.push("kansai", "kyoto", "osaka", "shiga", "nara", "hyogo", "wakayama");
-  if (q === "momiji") terms.push("maple");
-  if (q === "ichou" || q === "icho") terms.push("ginkgo");
+  const terms = [q, ...(KOYO_FILTER_ALIASES[q] ?? [])];
   return Array.from(new Set(terms));
 }
 
@@ -585,6 +616,30 @@ function matchesKoyoFilter(
   return terms.some((term) => haystack.some((value) => value.includes(term)));
 }
 
+function koyoViewingWindowOverlaps(
+  city: { maple?: { forecast: string | null } | null; ginkgo?: { forecast: string | null } | null },
+  startDate: Date,
+  endDate: Date,
+): boolean {
+  const peakDates = [city.maple?.forecast, city.ginkgo?.forecast].filter(Boolean) as string[];
+  if (!peakDates.length) return false;
+  const timestamps = peakDates.map((date) => new Date(date).getTime());
+  const windowStart = new Date(Math.min(...timestamps));
+  windowStart.setDate(windowStart.getDate() - KOYO_VIEWING_WINDOW_BEFORE_PEAK_DAYS);
+  const windowEnd = new Date(Math.max(...timestamps));
+  windowEnd.setDate(windowEnd.getDate() + KOYO_VIEWING_WINDOW_AFTER_PEAK_DAYS);
+  return startDate <= windowEnd && endDate >= windowStart;
+}
+
+function koyoNoMatchText(startDate: string, endDate: string): string {
+  return [
+    `No koyo cities in colour during ${startDate} to ${endDate} in the currently available JMC forecast dataset.`,
+    "",
+    KOYO_TYPICAL_TIMING_SHORT,
+    KOYO_EXACT_SPOTS_NEXT_STEP,
+  ].join("\n");
+}
+
 async function formatKoyoNowAnswer(options: {
   region?: string;
   start_date?: string;
@@ -599,7 +654,7 @@ async function formatKoyoNowAnswer(options: {
   );
 
   if (!allCities.length) {
-    return `No autumn leaves forecast city matched "${options.region}". Try a region, prefecture, or city such as Kyoto, Tokyo, Hokkaido, Kansai, or Tohoku.`;
+    return `No autumn leaves forecast city matched "${options.region}". Try a region, prefecture, or city such as ${KOYO_LOCATION_EXAMPLES.join(", ")}.`;
   }
 
   if (options.start_date && options.end_date) {
@@ -610,21 +665,14 @@ async function formatKoyoNowAnswer(options: {
     }
     const matches: typeof allCities = [];
     for (const city of allCities) {
-      const peakDates = [city.maple?.forecast, city.ginkgo?.forecast].filter(Boolean) as string[];
-      if (!peakDates.length) continue;
-      const timestamps = peakDates.map((date) => new Date(date).getTime());
-      const windowStart = new Date(Math.min(...timestamps));
-      windowStart.setDate(windowStart.getDate() - 3);
-      const windowEnd = new Date(Math.max(...timestamps));
-      windowEnd.setDate(windowEnd.getDate() + 10);
-      if (startDate <= windowEnd && endDate >= windowStart) matches.push(city);
+      if (koyoViewingWindowOverlaps(city, startDate, endDate)) matches.push(city);
     }
     let output = `# Autumn leaves forecast for ${options.start_date} to ${options.end_date}\n`;
     output += `Source: ${forecast.source}. Last updated: ${forecast.lastUpdated}. Today in Japan: ${today}.\n\n`;
     const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
     if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
     if (!matches.length) {
-      output += `No maple or ginkgo forecast city has a viewing window overlapping those dates. Typical koyo timing: Hokkaido and mountains Sep-Oct, Tohoku and Nikko Oct, Kyoto/Tokyo Nov, Kyushu late Nov-early Dec.\n`;
+      output += `${koyoNoMatchText(options.start_date, options.end_date)}\n`;
       return output;
     }
     output += `## Best city matches\n`;
@@ -646,7 +694,7 @@ async function formatKoyoNowAnswer(options: {
   const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
   if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
   output += `## Typical timing guide\n`;
-  output += `Hokkaido and high mountains usually peak first from September to October. Tohoku and Nikko often peak in October. Kyoto, Tokyo, and much of central Honshu usually peak in November. Kyushu often continues into late November or early December.\n\n`;
+  output += `${KOYO_TYPICAL_TIMING_GUIDE}\n\n`;
   if (!freshnessNote && forecast.forecastComment) output += `## JMC source commentary\n${forecast.forecastComment}\n\n`;
 
   if (bestNow.length) {
@@ -674,7 +722,7 @@ async function formatKoyoNowAnswer(options: {
     output += `\n`;
   }
   if (!bestNow.length && !soon.length && !freshnessNote) {
-    output += `Koyo is strongly seasonal. If this is outside Sep-Dec, use this as the forecast dataset/season guide rather than a same-week recommendation. Typical timing: Hokkaido and high mountains Sep-Oct, Tohoku/Nikko Oct, Kyoto/Tokyo Nov, Kyushu late Nov-early Dec.\n\n`;
+    output += `Koyo is strongly seasonal. If this is outside Sep-Dec, use this as the forecast dataset/season guide rather than a same-week recommendation. ${KOYO_TYPICAL_TIMING_SHORT}\n\n`;
   }
   output += `Next step: use koyo_spots for exact temples, parks, and gardens in a prefecture.\n`;
   return output;
@@ -1042,7 +1090,7 @@ Use the japan-seasons-mcp tools based on the travel month:
         question: z.string().optional().describe("The user's natural-language question, for example 'How is the sakura forecast?', 'Where should I see autumn leaves in late November?', or 'What seasonal things are good in Japan in June?'").meta({ title: "Question" }),
         start_date: z.string().optional().describe("Optional trip start date in YYYY-MM-DD format. Provide this when the user gives travel dates.").meta({ title: "Trip Start Date" }),
         end_date: z.string().optional().describe("Optional trip end date in YYYY-MM-DD format. Provide this when the user gives travel dates.").meta({ title: "Trip End Date" }),
-        location: z.string().optional().describe("Optional city, prefecture, or region such as Tokyo, Kyoto, Hokkaido, Kansai, or Tohoku.").meta({ title: "Location" }),
+        location: z.string().optional().describe(`Optional city, prefecture, or region such as ${SAKURA_LOCATION_EXAMPLES.join(", ")}.`).meta({ title: "Location" }),
         season: z.enum(["auto", "overview", "sakura", "kawazu", "koyo", "flowers", "festivals", "fruit", "weather"]).optional().describe("Optional explicit season/topic. Use auto unless the user clearly asks for one topic. Use overview for broad questions about what seasonal activities are good in a month.").meta({ title: "Season Topic" }),
       },
       annotations: READONLY,
@@ -1141,7 +1189,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       title: "Sakura Forecast Now",
       description: "Use this first for broad cherry blossom prompts such as 'How is the sakura forecast?', 'Is sakura blooming now?', 'Where should I view sakura today?', 'Where should I see cherry blossoms this week?', or 'How is Kyoto sakura looking?'. Returns a concise current answer from live Japan Meteorological Corporation forecast and observation data, including specific viewing spot suggestions when current spot data is available, plus next-step guidance for the full park list and weather. Do not use this for autumn leaves, non-sakura flowers, hotels, trains, or generic itinerary planning.",
       inputSchema: {
-        city: z.string().optional().describe("Optional city, prefecture, or region filter such as Tokyo, Kyoto, Hokkaido, Kansai, or Tohoku. Omit for nationwide status.").meta({ title: "City or Region" }),
+        city: z.string().optional().describe(`Optional city, prefecture, or region filter such as ${SAKURA_LOCATION_EXAMPLES.join(", ")}. Omit for nationwide status.`).meta({ title: "City or Region" }),
         start_date: z.string().optional().describe("Optional trip start date in YYYY-MM-DD format. Use with end_date when the user gives travel dates.").meta({ title: "Trip Start Date" }),
         end_date: z.string().optional().describe("Optional trip end date in YYYY-MM-DD format. Use with start_date when the user gives travel dates.").meta({ title: "Trip End Date" }),
       },
@@ -1162,7 +1210,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       title: "Autumn Leaves Forecast Now",
       description: "Use this first for broad autumn leaves prompts such as 'How are autumn leaves looking?', 'Where is koyo good now?', 'Kyoto autumn leaves forecast', or 'Where should I see fall foliage in Japan?'. Returns a concise current answer from live Japan Meteorological Corporation maple and ginkgo forecast data. Do not use this for cherry blossoms, fruit picking, hotels, trains, or generic itinerary planning.",
       inputSchema: {
-        region: z.string().optional().describe("Optional city, prefecture, or region filter such as Kyoto, Tokyo, Hokkaido, Kansai, Nikko, or Tohoku. Omit for nationwide status.").meta({ title: "Region or Prefecture" }),
+        region: z.string().optional().describe(`Optional city, prefecture, or region filter such as ${KOYO_LOCATION_EXAMPLES.join(", ")}. Omit for nationwide status.`).meta({ title: "Region or Prefecture" }),
         start_date: z.string().optional().describe("Optional trip start date in YYYY-MM-DD format. Use with end_date when the user gives travel dates.").meta({ title: "Trip Start Date" }),
         end_date: z.string().optional().describe("Optional trip end date in YYYY-MM-DD format. Use with start_date when the user gives travel dates.").meta({ title: "Trip End Date" }),
       },
@@ -1355,9 +1403,9 @@ Use the japan-seasons-mcp tools based on the travel month:
         const forecast = await getSakuraForecast();
         const matches = findBestRegions(forecast, startDate, endDate);
         if (matches.length === 0) {
-          return { content: [{ type: "text", text: `No cities in bloom during ${start_date} to ${end_date}.\n\nSeason: Okinawa Jan-Feb, Kyushu/Kansai late Mar, Kanto early Apr, Tohoku mid Apr, Hokkaido late Apr-May.\nTry kawazu_forecast for Jan-Feb early blooms.` }] };
+          return { content: [{ type: "text", text: `No cities in bloom during ${start_date} to ${end_date}.\n\n${SAKURA_TYPICAL_TIMING}\nTry kawazu_forecast for Jan-Feb early blooms.` }] };
         }
-        let output = `# Best cities for sakura: ${start_date} to ${end_date}\n\n${matches.length} cities with bloom in your window.\nUse sakura_spots to find specific parks.\n\n`;
+        let output = `# Best cities for sakura: ${start_date} to ${end_date}\n\n${matches.length} cities with bloom in your window. A spot preview is included below; use sakura_spots for the full park and temple list.\n\n`;
         output += formatCityResults(matches, outputConfig);
         output += "\n";
         output += await formatSakuraSpotPreview(matches.slice(0, 3), outputConfig, "Specific viewing spots to check");
@@ -1432,7 +1480,7 @@ Use the japan-seasons-mcp tools based on the travel month:
       description: "Use this when the user asks when autumn leaves peak, whether one city colors earlier than another, or wants a national overview for October-December. Returns city-level maple and ginkgo forecast dates, forecast maps, and regional commentary from Japan Meteorological Corporation. Do not use this for specific temples, gardens, or GPS-tagged locations; call koyo_spots next for those.",
       inputSchema: {
         region: z.string().optional().describe(
-          "Optional case-insensitive filter for a region, prefecture, or city such as 'Kansai', 'Kyoto', 'Hokkaido', or 'Tokyo'. Use this when the user only cares about one part of Japan instead of the full national forecast."
+          `Optional case-insensitive filter for a region, prefecture, or city such as ${KOYO_LOCATION_EXAMPLES.slice(0, 4).map((name) => `'${name}'`).join(", ")}. Use this when the user only cares about one part of Japan instead of the full national forecast.`
         ).meta({ title: "Region or Prefecture Filter" }),
         tree_type: z.enum(["all", "maple", "ginkgo"]).optional().describe(
           "Optional tree filter. Use 'maple' for momiji-only dates, 'ginkgo' for ginkgo-only dates, or omit/use 'all' to return both."
@@ -1457,7 +1505,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           return {
             content: [{
               type: "text",
-              text: `No koyo forecast cities matched "${region}". Try a broader region, prefecture, or city name such as 'Kansai', 'Kyoto', 'Tohoku', or 'Hokkaido'.`,
+              text: `No koyo forecast cities matched "${region}". Try a broader region, prefecture, or city name such as ${KOYO_LOCATION_EXAMPLES.join(", ")}.`,
             }],
           };
         }
@@ -1465,7 +1513,7 @@ Use the japan-seasons-mcp tools based on the travel month:
         let output = `# Autumn Leaves (Koyo) Forecast\nSource: ${forecast.source}\nLast updated: ${forecast.lastUpdated}\n\n`;
         const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
         if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
-        output += `## Typical timing guide\nHokkaido and high mountains usually peak first from September to October. Tohoku and Nikko often peak in October. Kyoto, Tokyo, and much of central Honshu usually peak in November. Kyushu often continues into late November or early December.\n\n`;
+        output += `## Typical timing guide\n${KOYO_TYPICAL_TIMING_GUIDE}\n\n`;
         if (!freshnessNote && forecast.forecastComment) output += `## JMC source commentary\n${forecast.forecastComment}\n\n`;
         output += `## Maps\n- Maple: ${preferredMapUrl(forecast.mapleForecastMapUrlEn, forecast.mapleForecastMapUrl, outputConfig)}\n- Ginkgo: ${preferredMapUrl(forecast.ginkgoForecastMapUrlEn, forecast.ginkgoForecastMapUrl, outputConfig)}\n\n`;
         for (const forecastRegion of filteredRegions) {
@@ -1587,15 +1635,7 @@ Use the japan-seasons-mcp tools based on the travel month:
         const matches: { name: string; pref: string; mapleDate: string | null; ginkgoDate: string | null }[] = [];
         for (const region of forecast.regions) {
           for (const city of region.cities) {
-            const peakDates = [city.maple?.forecast, city.ginkgo?.forecast].filter(Boolean) as string[];
-            if (!peakDates.length) continue;
-            // Viewing window: 3 days before earliest peak → 10 days after latest peak
-            const timestamps = peakDates.map(d => new Date(d).getTime());
-            const windowStart = new Date(Math.min(...timestamps));
-            windowStart.setDate(windowStart.getDate() - 3);
-            const windowEnd = new Date(Math.max(...timestamps));
-            windowEnd.setDate(windowEnd.getDate() + 10);
-            if (startDate <= windowEnd && endDate >= windowStart) {
+            if (koyoViewingWindowOverlaps(city, startDate, endDate)) {
               matches.push({ name: city.name, pref: city.prefName, mapleDate: city.maple?.forecast ?? null, ginkgoDate: city.ginkgo?.forecast ?? null });
             }
           }
@@ -1605,9 +1645,7 @@ Use the japan-seasons-mcp tools based on the travel month:
         const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
         if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
         if (!matches.length) {
-          output += `No koyo cities in colour during ${start_date} to ${end_date} in the currently available JMC forecast dataset.\n\n`;
-          output += `Typical season: Hokkaido/mountains Sep-Oct, Tohoku/Nikko Oct, Kanto/Kyoto mid-Oct to Nov, Kyushu Nov-early Dec.\n`;
-          output += `Use koyo_spots for exact temples, parks, and gardens if the user already has a destination.\n`;
+          output += koyoNoMatchText(start_date, end_date);
           return { content: [{ type: "text", text: output }] };
         }
 
@@ -2137,6 +2175,15 @@ async function startHttpServer() {
       return;
     }
 
+    if (url.pathname === "/site-config.json") {
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "public, max-age=300",
+      });
+      res.end(JSON.stringify(SITE_PUBLIC_CONFIG));
+      return;
+    }
+
     if (url.pathname === "/sakura-forecast.txt") {
       try {
         const outputConfig = getOutputConfig(url.searchParams, req.headers);
@@ -2291,12 +2338,13 @@ async function startHttpServer() {
     // to avoid double-encoding issues.
     const staticEntry = STATIC_FILES[url.pathname];
     if (staticEntry) {
+      const body = renderSiteTemplate(staticEntry.body, staticEntry.mime);
       res.writeHead(200, {
         "Content-Type": staticEntry.mime,
         "Cache-Control": "public, max-age=300",
         "Vary": "Accept-Encoding",
       });
-      res.end(staticEntry.body);
+      res.end(body);
       return;
     }
 

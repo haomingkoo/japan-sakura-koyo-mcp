@@ -10,15 +10,15 @@
   <meta name="keywords" content="Japan travel, cherry blossom, sakura, autumn leaves, koyo, Japan festivals, matsuri, fruit picking, Japan Meteorological Agency, JMA, MCP server">
   <meta name="author" content="Haoming Koo">
 
-  <link rel="canonical" href="https://seasons.kooexperience.com/">
+  <link rel="canonical" href="{{SITE_URL}}/">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
 
   <!-- Open Graph -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://seasons.kooexperience.com/">
+  <meta property="og:url" content="{{SITE_URL}}/">
   <meta property="og:title" content="Japan in Seasons — Live Cherry Blossom, Autumn Leaves, Festivals & Flowers">
   <meta property="og:description" content="1,700+ GPS-tagged spots across all 47 prefectures. Live bloom forecasts from Japan Meteorological Corporation. Free, open-source, with an MCP server for AI assistants.">
-  <meta property="og:image" content="https://seasons.kooexperience.com/og-image.png">
+  <meta property="og:image" content="{{SITE_URL}}/og-image.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:locale" content="en_US">
@@ -28,7 +28,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Japan in Seasons — Live Seasonal Travel Data">
   <meta name="twitter:description" content="Live sakura, koyo, festivals, flowers, and weather for Japan. 1,700+ spots. Free + MCP for AI assistants.">
-  <meta name="twitter:image" content="https://seasons.kooexperience.com/og-image.png">
+  <meta name="twitter:image" content="{{SITE_URL}}/og-image.png">
 
   <!-- JSON-LD: WebSite -->
   <script type="application/ld+json">
@@ -37,7 +37,7 @@
     "@type": "WebSite",
     "name": "Japan in Seasons",
     "alternateName": "japan-seasons-mcp",
-    "url": "https://seasons.kooexperience.com/",
+    "url": "{{SITE_URL}}/",
     "description": "Live Japan seasonal travel data: cherry blossom, autumn leaves, festivals, flowers, fruit picking, and weather.",
     "inLanguage": "en",
     "author": {
@@ -48,7 +48,7 @@
     "license": "https://opensource.org/licenses/MIT",
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://seasons.kooexperience.com/?q={search_term_string}",
+      "target": "{{SITE_URL}}/?q={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   }
@@ -61,7 +61,7 @@
     "@type": "Dataset",
     "name": "Japan Seasonal Travel Dataset",
     "description": "Live cherry blossom (sakura) bloom forecasts across 48 JMC observation cities, autumn leaves (koyo) timing, 46 festivals, 90 flower spots, 1,012 sakura viewing locations, and a 346-farm fruit directory. Across all 47 Japanese prefectures. Forecast data comes from Japan Meteorological Corporation, Japan Meteorological Agency, and Open-Meteo; static travel datasets include official source links.",
-    "url": "https://seasons.kooexperience.com/",
+    "url": "{{SITE_URL}}/",
     "keywords": ["sakura", "cherry blossom", "koyo", "autumn leaves", "Japan travel", "matsuri", "festivals", "Japan Meteorological Agency", "JMA", "JMC"],
     "creator": {
       "@type": "Person",
@@ -71,10 +71,10 @@
     "license": "https://opensource.org/licenses/MIT",
     "isAccessibleForFree": true,
     "distribution": [
-      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/sakura/forecast"},
-      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/koyo/forecast"},
-      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/festivals"},
-      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/flowers"}
+      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "{{SAKURA_FORECAST_API_URL}}"},
+      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "{{KOYO_FORECAST_API_URL}}"},
+      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "{{SITE_URL}}/api/festivals"},
+      {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "{{SITE_URL}}/api/flowers"}
     ],
     "spatialCoverage": {
       "@type": "Place",
@@ -138,7 +138,7 @@
         "name": "How do I use Japan in Seasons with Claude, ChatGPT, or other AI assistants?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Japan in Seasons exposes crawlable forecast pages and a Model Context Protocol (MCP) server. AI search can cite https://seasons.kooexperience.com/sakura-forecast.txt or the JSON APIs for latest dates. MCP tool use requires connecting https://seasons.kooexperience.com/mcp inside an MCP-capable client or ChatGPT app/connector; finding the page in search does not let the assistant run MCP tools automatically."
+          "text": "Japan in Seasons exposes crawlable forecast pages and a Model Context Protocol (MCP) server. AI search can cite {{SAKURA_FORECAST_TEXT_URL}} or the JSON APIs for latest dates. MCP tool use requires connecting {{MCP_ENDPOINT}} inside an MCP-capable client or ChatGPT app/connector; finding the page in search does not let the assistant run MCP tools automatically."
         }
       }
     ]
@@ -156,7 +156,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
   <script data-cfasync="false" src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <link rel="stylesheet" href="app.css">
-  <script>window.onerror=function(m,s,l,c,e){document.getElementById('sidebar-content').innerHTML='<div style="padding:16px;color:red;font-size:14px"><b>JS Error:</b> '+m+'<br>at '+s+':'+l+'</div>';}</script>
+  <script>window.onerror=function(m,s,l){var el=document.getElementById('sidebar-content');if(el){el.innerHTML='<div style="padding:16px;color:red;font-size:14px"><b>JS Error:</b> '+m+'<br>at '+s+':'+l+'</div>';}}</script>
 </head>
 <body>
 
@@ -173,7 +173,7 @@
       <button class="mode-btn flowers" id="btn-flowers" onclick="setMode('flowers')" aria-label="Flowers mode">🌷 Flowers</button>
       <button class="mode-btn whatson" id="btn-whatson" onclick="setMode('whatson')" aria-label="What's On mode">📅 What's On</button>
       <button class="mode-btn" id="btn-trip" onclick="setMode('trip')" aria-label="Plan My Trip">Plan My Trip</button>
-      <button class="mode-btn" onclick="findNearMe()" id="btn-nearme" title="Find sakura spots near your current location" aria-label="Find sakura spots near my location">Near Me</button>
+      <button class="mode-btn" onclick="findNearMe()" id="btn-nearme" title="Find seasonal spots near your current location" aria-label="Find seasonal spots near my location">Near Me</button>
     </div>
     <select class="mode-select" id="mode-select" onchange="handleModeSelect(this.value)" aria-label="Select mode">
       <option value="sakura">🌸 Cherry Blossom</option>
@@ -215,7 +215,7 @@
       </div>
       <div class="footer-link">
         <span id="footer-data-note"></span>
-        MCP: <code>seasons.kooexperience.com/mcp</code> &middot;
+        MCP: <code>{{MCP_ENDPOINT}}</code> &middot;
         <a href="https://github.com/haomingkoo/japan-seasons-mcp" target="_blank" rel="noopener">GitHub</a> &middot;
         <a href="https://www.npmjs.com/package/japan-seasons-mcp" target="_blank" rel="noopener">npm</a><br>
         Built by <a href="https://kooexperience.com" target="_blank" rel="noopener">Haoming Koo</a>
@@ -252,17 +252,17 @@
 
     <h3>For AI search and web browsing</h3>
     <p>If ChatGPT, Perplexity, or another AI search product finds this site through web search, it should cite the crawlable forecast pages instead of trying to run MCP tools.</p>
-    <pre><code>https://seasons.kooexperience.com/sakura-forecast.txt
-https://seasons.kooexperience.com/api/sakura/forecast</code></pre>
+    <pre><code>{{SAKURA_FORECAST_TEXT_URL}}
+{{SAKURA_FORECAST_API_URL}}</code></pre>
 
     <h3>Remote MCP endpoint (zero install)</h3>
     <p>Point your MCP client, app, or connector at:</p>
-    <pre><code>https://seasons.kooexperience.com/mcp</code></pre>
+    <pre><code>{{MCP_ENDPOINT}}</code></pre>
 
     <h3>ChatGPT app / connector metadata</h3>
-    <pre><code>Name: Japan in Seasons
-Description: Use this for live Japan seasonal travel data: cherry blossom and sakura dates, autumn leaves, flowers, festivals, fruit picking, and weather. Best for current or date-specific Japan travel questions.
-Connector URL: https://seasons.kooexperience.com/mcp</code></pre>
+    <pre><code>Name: {{CONNECTOR_NAME}}
+Description: {{CONNECTOR_DESCRIPTION}}
+Connector URL: {{MCP_ENDPOINT}}</code></pre>
     <p>If ChatGPT only found this page via search, it cannot call the MCP tools yet. Connect the endpoint first, then ask for current sakura dates, best blossom cities for travel dates, or exact parks by prefecture.</p>
 
     <h3>Local install via npm</h3>
@@ -279,7 +279,7 @@ Connector URL: https://seasons.kooexperience.com/mcp</code></pre>
 }</code></pre>
 
     <h3>Best AI entry points</h3>
-    <p><code>japan_seasonal_answer</code> for broad seasonal travel questions, <code>sakura_now</code> for "how is the sakura forecast?" prompts, <code>koyo_now</code> for autumn leaves prompts, and <code>search</code> / <code>fetch</code> for retrieval and citation flows.</p>
+    <p><code>japan_seasonal_answer</code> for broad seasonal travel questions, <code>sakura_now</code> for "how is the sakura forecast?" prompts with viewing spot suggestions, <code>koyo_now</code> for autumn leaves prompts, and <code>search</code> / <code>fetch</code> for retrieval and citation flows.</p>
 
     <h3>Specialist tools</h3>
     <p><code>sakura_forecast</code>, <code>sakura_best_dates</code>, <code>sakura_spots</code>, <code>kawazu_forecast</code>, <code>koyo_forecast</code>, <code>koyo_best_dates</code>, <code>koyo_spots</code>, <code>flowers_spots</code>, <code>festivals_list</code>, <code>fruit_seasons</code>, <code>fruit_farms</code>, <code>weather_forecast</code>.</p>

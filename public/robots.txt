@@ -1,4 +1,4 @@
-# Japan in Seasons — https://seasons.kooexperience.com
+# Japan in Seasons — {{SITE_URL}}
 # Allow indexing and AI citation. Block training-only crawlers.
 
 User-agent: *
@@ -45,4 +45,4 @@ Allow: /
 User-agent: CCBot
 Disallow: /
 
-Sitemap: https://seasons.kooexperience.com/sitemap.xml
+Sitemap: {{SITE_URL}}/sitemap.xml

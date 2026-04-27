@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Japan Autumn Leaves Forecast | Live Koyo, Maple and Ginkgo</title>
   <meta name="description" content="Japan autumn leaves forecast data: JMC maple and ginkgo timing when in season, koyo city forecasts, forecast maps, and 687 viewing spots across Japan.">
-  <link rel="canonical" href="https://seasons.kooexperience.com/autumn-leaves-forecast">
+  <link rel="canonical" href="{{SITE_URL}}/autumn-leaves-forecast">
   <meta property="og:title" content="Japan Autumn Leaves Forecast">
   <meta property="og:description" content="Live koyo timing for maple and ginkgo from Japan Meteorological Corporation, with 687 autumn leaves viewing spots and MCP access for AI assistants.">
-  <meta property="og:image" content="https://seasons.kooexperience.com/og-image.png">
+  <meta property="og:image" content="{{SITE_URL}}/og-image.png">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">
   {
@@ -16,13 +16,13 @@
     "@type": "Dataset",
     "name": "Japan Autumn Leaves Forecast",
     "description": "Koyo forecast data from Japan Meteorological Corporation: maple and ginkgo forecast dates when in season, regional commentary, forecast maps, and 687 viewing spots.",
-    "url": "https://seasons.kooexperience.com/autumn-leaves-forecast",
+    "url": "{{SITE_URL}}/autumn-leaves-forecast",
     "keywords": ["Japan autumn leaves forecast", "koyo forecast", "momiji", "maple", "ginkgo", "Kyoto autumn leaves", "Nikko koyo"],
     "isAccessibleForFree": true,
     "creator": { "@type": "Person", "name": "Haoming Koo", "url": "https://kooexperience.com" },
     "distribution": [
-      { "@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/koyo/forecast" },
-      { "@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://seasons.kooexperience.com/api/koyo/all-spots" }
+      { "@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "{{KOYO_FORECAST_API_URL}}" },
+      { "@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "{{SITE_URL}}/api/koyo/all-spots" }
     ],
     "spatialCoverage": { "@type": "Country", "name": "Japan" }
   }
@@ -67,7 +67,7 @@
 
   <h2>Use With MCP</h2>
   <p>Remote MCP endpoint:</p>
-  <pre><code>https://seasons.kooexperience.com/mcp</code></pre>
+  <pre><code>{{MCP_ENDPOINT}}</code></pre>
   <p>Best broad tool names for AI routing: <code>japan_seasonal_answer</code>, <code>koyo_now</code>, <code>koyo_forecast</code>, <code>koyo_best_dates</code>, <code>koyo_spots</code>, <code>search</code>, and <code>fetch</code>.</p>
 
   <h2>Data Source</h2>
