@@ -558,6 +558,33 @@ function formatKoyoCityLine(city: { nameEn?: string; name: string; prefNameEn?: 
   return `- **${name} (${pref})** — ${[maple, ginkgo].filter(Boolean).join("; ")}`;
 }
 
+function koyoFilterTerms(filter: string | undefined | null): string[] {
+  if (!filter) return [];
+  const q = filter.toLowerCase().trim();
+  const terms = [q];
+  if (q === "kansai") terms.push("kinki", "kyoto", "osaka", "shiga", "nara", "hyogo", "wakayama");
+  if (q === "kinki") terms.push("kansai", "kyoto", "osaka", "shiga", "nara", "hyogo", "wakayama");
+  if (q === "momiji") terms.push("maple");
+  if (q === "ichou" || q === "icho") terms.push("ginkgo");
+  return Array.from(new Set(terms));
+}
+
+function matchesKoyoFilter(
+  terms: string[],
+  forecastRegion: { name: string },
+  city: { name: string; nameEn: string; prefName: string; prefNameEn: string },
+): boolean {
+  if (!terms.length) return true;
+  const haystack = [
+    forecastRegion.name,
+    city.name,
+    city.nameEn,
+    city.prefName,
+    city.prefNameEn,
+  ].map((value) => value.toLowerCase());
+  return terms.some((term) => haystack.some((value) => value.includes(term)));
+}
+
 async function formatKoyoNowAnswer(options: {
   region?: string;
   start_date?: string;
@@ -566,13 +593,10 @@ async function formatKoyoNowAnswer(options: {
 }): Promise<string> {
   const forecast = await getKoyoForecast();
   const today = todayJstIsoDate();
-  const regionFilter = options.region?.toLowerCase();
-  const allCities = forecast.regions.flatMap((region) => region.cities)
-    .filter((city) => !regionFilter ||
-      city.name.toLowerCase().includes(regionFilter) ||
-      city.nameEn.toLowerCase().includes(regionFilter) ||
-      city.prefName.toLowerCase().includes(regionFilter) ||
-      city.prefNameEn.toLowerCase().includes(regionFilter));
+  const regionTerms = koyoFilterTerms(options.region);
+  const allCities = forecast.regions.flatMap((forecastRegion) =>
+    forecastRegion.cities.filter((city) => matchesKoyoFilter(regionTerms, forecastRegion, city))
+  );
 
   if (!allCities.length) {
     return `No autumn leaves forecast city matched "${options.region}". Try a region, prefecture, or city such as Kyoto, Tokyo, Hokkaido, Kansai, or Tohoku.`;
@@ -1335,6 +1359,8 @@ Use the japan-seasons-mcp tools based on the travel month:
         }
         let output = `# Best cities for sakura: ${start_date} to ${end_date}\n\n${matches.length} cities with bloom in your window.\nUse sakura_spots to find specific parks.\n\n`;
         output += formatCityResults(matches, outputConfig);
+        output += "\n";
+        output += await formatSakuraSpotPreview(matches.slice(0, 3), outputConfig, "Specific viewing spots to check");
         return { content: [{ type: "text", text: output }] };
       } catch (e: any) {
         return { content: [{ type: "text", text: `Error: ${e.message}` }], isError: true };
@@ -1417,16 +1443,11 @@ Use the japan-seasons-mcp tools based on the travel month:
     async ({ region, tree_type = "all" }) => {
       try {
         const forecast = await getKoyoForecast();
-        const regionFilter = region?.toLowerCase();
+        const regionTerms = koyoFilterTerms(region);
         const filteredRegions = forecast.regions
           .map((forecastRegion) => {
             const matchingCities = forecastRegion.cities.filter((city) => {
-              if (!regionFilter) return true;
-              return (
-                forecastRegion.name.toLowerCase().includes(regionFilter) ||
-                city.name.toLowerCase().includes(regionFilter) ||
-                city.prefName.toLowerCase().includes(regionFilter)
-              );
+              return matchesKoyoFilter(regionTerms, forecastRegion, city);
             });
             return { ...forecastRegion, cities: matchingCities };
           })
@@ -1580,13 +1601,16 @@ Use the japan-seasons-mcp tools based on the travel month:
           }
         }
 
-        if (!matches.length) {
-          return { content: [{ type: "text", text: `No koyo cities in colour during ${start_date} to ${end_date}.\n\nTypical season: Hokkaido/mountains Sep–Oct, Tohoku/Nikko Oct, Kanto/Kyoto mid-Oct to Nov, Kyushu Nov–early Dec.` }] };
-        }
-
         let output = `# Best cities for koyo: ${start_date} to ${end_date}\n\n`;
         const freshnessNote = priorSeasonKoyoNote(forecast.lastUpdated);
         if (freshnessNote) output += `**Data freshness:** ${freshnessNote}\n\n`;
+        if (!matches.length) {
+          output += `No koyo cities in colour during ${start_date} to ${end_date} in the currently available JMC forecast dataset.\n\n`;
+          output += `Typical season: Hokkaido/mountains Sep-Oct, Tohoku/Nikko Oct, Kanto/Kyoto mid-Oct to Nov, Kyushu Nov-early Dec.\n`;
+          output += `Use koyo_spots for exact temples, parks, and gardens if the user already has a destination.\n`;
+          return { content: [{ type: "text", text: output }] };
+        }
+
         output += `${matches.length} cities with autumn colour in your window.\nUse koyo_spots to find specific parks and temples.\n\n`;
         for (const m of matches) {
           output += `### ${m.name} (${m.pref})\n`;

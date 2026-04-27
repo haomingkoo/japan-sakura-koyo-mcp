@@ -195,11 +195,11 @@ All 48 JMA observation cities in one call: this year's forecast, actual dates wh
 
 **`sakura_best_dates`** — match travel dates to bloom
 
-Give it your start and end dates, get back the cities where full bloom overlaps your window.
+Give it your start and end dates, get back the cities where full bloom overlaps your window plus a short list of specific viewing spots when spot data is available.
 
 ```
 "I'm in Japan April 8–14, where should I go?"
-→ Cities with bloom in that window, ranked by timing, avg comparison
+→ Cities with bloom in that window, ranked by timing, plus spot suggestions and map links
 ```
 
 **`kawazu_forecast`** — early-season deep-pink variety
