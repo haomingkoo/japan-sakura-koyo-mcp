@@ -6,6 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --production=false
 
 COPY tsconfig.json ./
+COPY README.md server.json ./
 COPY src ./src
 COPY public ./public
 COPY scripts ./scripts
