@@ -3,6 +3,7 @@ import { logger } from "./logger.js";
 import { safeFetch } from "./fetch.js";
 import { romanizeName } from "./romaji.js";
 import { tokyoDatumToWGS84 } from "./areas.js";
+import { daysFromTodayJst, formatMonthDayJst } from "./dates.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -246,14 +247,10 @@ export async function getKoyoSpots(prefCode: string): Promise<KoyoSpotResult> {
 
 function computeKoyoStatus(start: string | null, peak: string | null, end: string | null): string {
   if (!start || !peak || !end) return "No forecast available";
-  const now = new Date();
-  const startDate = new Date(start);
-  const peakDate = new Date(peak);
-  const endDate = new Date(end);
-
-  const daysToStart = Math.floor((startDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const daysToPeak = Math.floor((peakDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-  const daysToEnd = Math.floor((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const daysToStart = daysFromTodayJst(start);
+  const daysToPeak = daysFromTodayJst(peak);
+  const daysToEnd = daysFromTodayJst(end);
+  if (daysToStart === null || daysToPeak === null || daysToEnd === null) return "No forecast available";
 
   if (daysToEnd < -7) return "Ended — leaves have fallen";
   if (daysToEnd < 0) return "Final days — leaves falling";
@@ -265,11 +262,5 @@ function computeKoyoStatus(start: string | null, peak: string | null, end: strin
 }
 
 export function formatDate(iso: string | null): string {
-  if (!iso) return "N/A";
-  try {
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  } catch {
-    return iso;
-  }
+  return formatMonthDayJst(iso);
 }

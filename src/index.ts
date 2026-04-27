@@ -40,6 +40,19 @@ import {
   SITE_PUBLIC_CONFIG,
   SITE_URL,
 } from "./lib/site-config.js";
+import {
+  DATE_RANGE_INPUT_HINT,
+  DAY_MS,
+  currentJstMonth,
+  currentJstYear,
+  daysFromTodayJst,
+  formatIsoDateJst,
+  isoYearInJst,
+  monthFromDateInputJst,
+  parseDateInputJst,
+  parseDateRangeInputJst,
+  todayJstIsoDate,
+} from "./lib/dates.js";
 
 // ─── Shared types ────────────────────────────────────────────────────────────
 type AnySpot = Record<string, unknown>;
@@ -105,10 +118,7 @@ function parseBoolean(value: string | undefined | null): boolean | undefined {
 }
 
 function formatIsoDate(iso: string | null): string {
-  if (!iso) return "N/A";
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso;
-  return date.toISOString().slice(0, 10);
+  return formatIsoDateJst(iso);
 }
 
 function formatSakuraDate(iso: string | null, outputConfig: OutputConfig): string {
@@ -135,11 +145,8 @@ function gpsLine(lat: unknown, lon: unknown, outputConfig: OutputConfig): string
 // Used to detect post-peak / hazakura (green leaves) state, since JMC jr_data stays
 // frozen at full_rate=100 after peak and stops publishing observation data.
 function daysSinceFullBloom(fullBloomIso: string | null): number | null {
-  if (!fullBloomIso) return null;
-  const peak = new Date(fullBloomIso);
-  const today = new Date();
-  const days = Math.floor((today.getTime() - peak.getTime()) / 86_400_000);
-  return days > 0 ? days : null;
+  const delta = daysFromTodayJst(fullBloomIso);
+  return delta !== null && delta < 0 ? Math.abs(delta) : null;
 }
 
 function postPeakNote(fullBloomIso: string | null): string | null {
@@ -242,7 +249,7 @@ function renderSiteTemplate(body: Buffer, mime: string): Buffer | string {
 // ─── Sitemap ────────────────────────────────────────────────────────────────
 // Expand here when per-season or per-prefecture landing pages ship.
 function SITEMAP_XML(): string {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayJstIsoDate();
   const urls = [
     { loc: `${SITE_URL}/`, priority: "1.0" },
     { loc: `${SITE_URL}/cherry-blossom-forecast`, priority: "0.95" },
@@ -287,7 +294,6 @@ Important rules:
 - Best sakura viewing is usually around full bloom. Best koyo viewing is usually around each spot's peak window.
 - All tools are read-only and require no authentication.`;
 
-const DAY_MS = 86_400_000;
 const SAKURA_LOCATION_EXAMPLES = SITE_CONFIG.locationExamples.sakura;
 const KOYO_LOCATION_EXAMPLES = SITE_CONFIG.locationExamples.koyo;
 const SAKURA_TYPICAL_TIMING = SITE_CONFIG.seasonalTiming.sakura;
@@ -299,62 +305,8 @@ const KOYO_VIEWING_WINDOW_AFTER_PEAK_DAYS = SITE_CONFIG.koyo.viewingWindowAfterP
 const KOYO_FILTER_ALIASES: Record<string, readonly string[]> = SITE_CONFIG.koyo.filterAliases;
 const TOP_KOYO_PREFS = SITE_CONFIG.koyo.topPrefectures;
 
-function todayJstIsoDate(): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Tokyo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${byType.year}-${byType.month}-${byType.day}`;
-}
-
-function jstDate(dateOnly: string): Date {
-  return new Date(`${dateOnly}T00:00:00+09:00`);
-}
-
-function daysFromTodayJst(iso: string | null | undefined): number | null {
-  if (!iso) return null;
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return null;
-  return Math.round((date.getTime() - jstDate(todayJstIsoDate()).getTime()) / DAY_MS);
-}
-
-function parseDateInput(value: string | undefined | null): Date | null {
-  if (!value) return null;
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? jstDate(value) : new Date(value);
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function monthFromDateInput(value: string | undefined | null): number | null {
-  const date = parseDateInput(value);
-  if (!date) return null;
-  return Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Tokyo", month: "numeric" }).format(date));
-}
-
-function currentJstMonth(): number {
-  return Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Tokyo", month: "numeric" }).format(new Date()));
-}
-
-function currentJstYear(): number {
-  return Number(new Intl.DateTimeFormat("en", { timeZone: "Asia/Tokyo", year: "numeric" }).format(new Date()));
-}
-
-function isoDateOnly(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return date.toISOString().slice(0, 10);
-}
-
-function isoYear(value: string | null | undefined): number | null {
-  const dateOnly = isoDateOnly(value);
-  return dateOnly ? Number(dateOnly.slice(0, 4)) : null;
-}
-
 function priorSeasonKoyoNote(lastUpdated: string | null | undefined): string | null {
-  const dataYear = isoYear(lastUpdated);
+  const dataYear = isoYearInJst(lastUpdated);
   const thisYear = currentJstYear();
   if (!dataYear || dataYear >= thisYear) return null;
   const month = currentJstMonth();
@@ -365,7 +317,7 @@ function priorSeasonKoyoNote(lastUpdated: string | null | undefined): string | n
 }
 
 function priorSeasonKoyoSpotNote(spots: Array<{ bestPeak?: string | null }>): string | null {
-  const peakYear = isoYear(spots.find((spot) => spot.bestPeak)?.bestPeak ?? null);
+  const peakYear = isoYearInJst(spots.find((spot) => spot.bestPeak)?.bestPeak ?? null);
   const thisYear = currentJstYear();
   if (!peakYear || peakYear >= thisYear) return null;
   return `These koyo spot peak windows are from the ${peakYear} JMC dataset. Treat them as prior-season reference until the ${thisYear} JMC spot forecast is published.`;
@@ -481,12 +433,11 @@ async function formatSakuraNowAnswer(options: {
   const today = todayJstIsoDate();
 
   if (options.start_date && options.end_date) {
-    const startDate = parseDateInput(options.start_date);
-    const endDate = parseDateInput(options.end_date);
-    if (!startDate || !endDate || endDate < startDate) {
-      return `Invalid trip dates. Use YYYY-MM-DD and make sure end_date is on or after start_date.`;
+    const range = parseDateRangeInputJst(options.start_date, options.end_date);
+    if (!range) {
+      return `Invalid trip dates. ${DATE_RANGE_INPUT_HINT}`;
     }
-    const matches = findBestRegions(forecast, startDate, endDate);
+    const matches = findBestRegions(forecast, range.startDate, range.endDate);
     let output = `# Sakura forecast for ${options.start_date} to ${options.end_date}\n`;
     output += `Source: ${forecast.source}. Checked against ${forecast.totalCities} JMC observation cities. Today in Japan: ${today}.\n\n`;
     if (!matches.length) {
@@ -621,13 +572,13 @@ function koyoViewingWindowOverlaps(
   startDate: Date,
   endDate: Date,
 ): boolean {
-  const peakDates = [city.maple?.forecast, city.ginkgo?.forecast].filter(Boolean) as string[];
+  const peakDates = [city.maple?.forecast, city.ginkgo?.forecast]
+    .map((date) => parseDateInputJst(date ?? null))
+    .filter((date): date is Date => Boolean(date));
   if (!peakDates.length) return false;
-  const timestamps = peakDates.map((date) => new Date(date).getTime());
-  const windowStart = new Date(Math.min(...timestamps));
-  windowStart.setDate(windowStart.getDate() - KOYO_VIEWING_WINDOW_BEFORE_PEAK_DAYS);
-  const windowEnd = new Date(Math.max(...timestamps));
-  windowEnd.setDate(windowEnd.getDate() + KOYO_VIEWING_WINDOW_AFTER_PEAK_DAYS);
+  const timestamps = peakDates.map((date) => date.getTime());
+  const windowStart = new Date(Math.min(...timestamps) - KOYO_VIEWING_WINDOW_BEFORE_PEAK_DAYS * DAY_MS);
+  const windowEnd = new Date(Math.max(...timestamps) + KOYO_VIEWING_WINDOW_AFTER_PEAK_DAYS * DAY_MS);
   return startDate <= windowEnd && endDate >= windowStart;
 }
 
@@ -658,14 +609,13 @@ async function formatKoyoNowAnswer(options: {
   }
 
   if (options.start_date && options.end_date) {
-    const startDate = parseDateInput(options.start_date);
-    const endDate = parseDateInput(options.end_date);
-    if (!startDate || !endDate || endDate < startDate) {
-      return `Invalid trip dates. Use YYYY-MM-DD and make sure end_date is on or after start_date.`;
+    const range = parseDateRangeInputJst(options.start_date, options.end_date);
+    if (!range) {
+      return `Invalid trip dates. ${DATE_RANGE_INPUT_HINT}`;
     }
     const matches: typeof allCities = [];
     for (const city of allCities) {
-      if (koyoViewingWindowOverlaps(city, startDate, endDate)) matches.push(city);
+      if (koyoViewingWindowOverlaps(city, range.startDate, range.endDate)) matches.push(city);
     }
     let output = `# Autumn leaves forecast for ${options.start_date} to ${options.end_date}\n`;
     output += `Source: ${forecast.source}. Last updated: ${forecast.lastUpdated}. Today in Japan: ${today}.\n\n`;
@@ -818,7 +768,7 @@ function inferSeason(question: string | undefined, startDate: string | undefined
   if (/(festival|matsuri|fireworks|hanabi|event)/.test(q)) return "festivals";
   if (/(fruit|farm|picking|strawberry|grape|peach|apple|mikan)/.test(q)) return "fruit";
   if (/(weather|rain|temperature|packing|umbrella)/.test(q)) return "weather";
-  const month = monthFromDateInput(startDate) ?? currentJstMonth();
+  const month = monthFromDateInputJst(startDate) ?? currentJstMonth();
   if (month === 1 || month === 2) return "kawazu";
   if (month >= 3 && month <= 5) return "sakura";
   if (month >= 10 && month <= 12) return "koyo";
@@ -1117,7 +1067,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           return { content: [{ type: "text", text: await formatKoyoNowAnswer({ region: location, start_date, end_date, outputConfig }) }] };
         }
         if (inferred === "flowers") {
-          const month = monthFromDateInput(start_date) ?? currentJstMonth();
+          const month = monthFromDateInputJst(start_date) ?? currentJstMonth();
           const data = STATIC_MCP.flowers;
           if (!data) return { content: [{ type: "text", text: "Flowers data not available on this instance." }], isError: true };
           let spots: AnySpot[] = data.spots || [];
@@ -1134,7 +1084,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           return { content: [{ type: "text", text: output }] };
         }
         if (inferred === "festivals") {
-          const month = monthFromDateInput(start_date) ?? currentJstMonth();
+          const month = monthFromDateInputJst(start_date) ?? currentJstMonth();
           const data = STATIC_MCP.festivals;
           if (!data) return { content: [{ type: "text", text: "Festivals data not available on this instance." }], isError: true };
           let events: AnySpot[] = data.spots || [];
@@ -1151,7 +1101,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           return { content: [{ type: "text", text: output }] };
         }
         if (inferred === "fruit") {
-          const month = monthFromDateInput(start_date) ?? currentJstMonth();
+          const month = monthFromDateInputJst(start_date) ?? currentJstMonth();
           const inSeason = FRUITS.filter((fruit) => fruit.months.includes(month));
           let output = `# Japan fruit picking — ${MO[month - 1]}\n\n`;
           if (!inSeason.length) output += `No major fruit-picking category is in peak season in this calendar month.\n`;
@@ -1174,7 +1124,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           return { content: [{ type: "text", text: output }] };
         }
         if (inferred === "overview") {
-          return { content: [{ type: "text", text: await formatSeasonalOverviewAnswer({ month: monthFromDateInput(start_date), location, outputConfig }) }] };
+          return { content: [{ type: "text", text: await formatSeasonalOverviewAnswer({ month: monthFromDateInputJst(start_date), location, outputConfig }) }] };
         }
         return { content: [{ type: "text", text: await formatSakuraNowAnswer({ city: location, start_date, end_date, outputConfig }) }] };
       } catch (e: any) {
@@ -1291,7 +1241,7 @@ Use the japan-seasons-mcp tools based on the travel month:
           }
           return { content: [{ type: "text", text: formatCityResults(cities, outputConfig) }] };
         }
-        let output = `# Sakura Forecast ${new Date().getFullYear()}\nSource: ${forecast.source} | ${forecast.totalCities} cities\n`;
+        let output = `# Sakura Forecast ${currentJstYear()}\nSource: ${forecast.source} | ${forecast.totalCities} cities\n`;
         output += `Dates marked ✓ confirmed are official government observations. All other dates are JMC predictions.\n\n`;
         for (const region of forecast.regions) {
           output += `## ${region.nameEn} (${region.name})\n`;
@@ -1395,13 +1345,12 @@ Use the japan-seasons-mcp tools based on the travel month:
     },
     async ({ start_date, end_date }) => {
       try {
-        const startDate = new Date(start_date);
-        const endDate = new Date(end_date);
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          return { content: [{ type: "text", text: "Invalid date format. Use YYYY-MM-DD." }], isError: true };
+        const range = parseDateRangeInputJst(start_date, end_date);
+        if (!range) {
+          return { content: [{ type: "text", text: `Invalid date format. ${DATE_RANGE_INPUT_HINT}` }], isError: true };
         }
         const forecast = await getSakuraForecast();
-        const matches = findBestRegions(forecast, startDate, endDate);
+        const matches = findBestRegions(forecast, range.startDate, range.endDate);
         if (matches.length === 0) {
           return { content: [{ type: "text", text: `No cities in bloom during ${start_date} to ${end_date}.\n\n${SAKURA_TYPICAL_TIMING}\nTry kawazu_forecast for Jan-Feb early blooms.` }] };
         }
@@ -1556,17 +1505,10 @@ Use the japan-seasons-mcp tools based on the travel month:
       try {
         // No-city mode: curated top koyo destinations
         if (!prefecture) {
-          const TOP_KOYO_PREFS = [
-            { code: "09", label: "Nikko (Tochigi)" },
-            { code: "26", label: "Kyoto" },
-            { code: "29", label: "Nara" },
-            { code: "01", label: "Hokkaido" },
-            { code: "06", label: "Yamagata" },
-          ];
           const results = await Promise.allSettled(
             TOP_KOYO_PREFS.map(p => getKoyoSpots(p.code))
           );
-          let output = `# Top Autumn Leaves Destinations in Japan\n\nShowing top-rated spots from 5 prime koyo prefectures. For nationwide timing, use koyo_forecast. For trip-date matching, use koyo_best_dates.\n\n`;
+          let output = `# Top Autumn Leaves Destinations in Japan\n\nShowing top-rated spots from ${TOP_KOYO_PREFS.length} prime koyo prefectures. For nationwide timing, use koyo_forecast. For trip-date matching, use koyo_best_dates.\n\n`;
           for (let i = 0; i < results.length; i++) {
             const r = results[i];
             if (r.status === "rejected") continue;
@@ -1625,17 +1567,16 @@ Use the japan-seasons-mcp tools based on the travel month:
     },
     async ({ start_date, end_date }) => {
       try {
-        const startDate = new Date(start_date);
-        const endDate = new Date(end_date);
-        if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-          return { content: [{ type: "text", text: "Invalid date format. Use YYYY-MM-DD." }], isError: true };
+        const range = parseDateRangeInputJst(start_date, end_date);
+        if (!range) {
+          return { content: [{ type: "text", text: `Invalid date format. ${DATE_RANGE_INPUT_HINT}` }], isError: true };
         }
         const forecast = await getKoyoForecast();
 
         const matches: { name: string; pref: string; mapleDate: string | null; ginkgoDate: string | null }[] = [];
         for (const region of forecast.regions) {
           for (const city of region.cities) {
-            if (koyoViewingWindowOverlaps(city, startDate, endDate)) {
+            if (koyoViewingWindowOverlaps(city, range.startDate, range.endDate)) {
               matches.push({ name: city.name, pref: city.prefName, mapleDate: city.maple?.forecast ?? null, ginkgoDate: city.ginkgo?.forecast ?? null });
             }
           }
@@ -2092,6 +2033,7 @@ const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
 const RATE_LIMIT_MAX = 60; // 60 requests per minute per IP
 const MAX_SESSIONS = 10_000;
 const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const MAX_BODY_BYTES = 1_048_576;
 
 const ipRequestCounts = new Map<string, { count: number; resetAt: number }>();
 
@@ -2220,7 +2162,6 @@ async function startHttpServer() {
       if (sessionId && transports.has(sessionId)) {
         sessionLastActive.set(sessionId, Date.now());
         if (req.method === "POST") {
-          const MAX_BODY_BYTES = 1_048_576;
           const chunks: Buffer[] = [];
           let bodyBytes = 0;
           for await (const chunk of req) {
@@ -2253,7 +2194,6 @@ async function startHttpServer() {
       // New connection without session ID.
       // Read body to check if it's an initialize request or not.
       // Limit body size to 1 MB to prevent memory-exhaustion attacks.
-      const MAX_BODY_BYTES = 1_048_576;
       const chunks: Buffer[] = [];
       let bodyBytes = 0;
       for await (const chunk of req) {

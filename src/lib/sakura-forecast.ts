@@ -3,6 +3,7 @@ import { logger } from "./logger.js";
 import { safeFetch } from "./fetch.js";
 import { romanizeName } from "./romaji.js";
 import { tokyoDatumToWGS84 } from "./areas.js";
+import { DAY_MS, daysFromTodayJst, formatMonthDayJst, parseDateInputJst } from "./dates.js";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -212,9 +213,8 @@ function hoursSince(iso: string | null | undefined): number | null {
 }
 
 function daysSince(iso: string | null | undefined): number | null {
-  const date = parseValidDate(iso);
-  if (!date) return null;
-  return Math.floor((Date.now() - date.getTime()) / 86_400_000);
+  const delta = daysFromTodayJst(iso);
+  return delta === null ? null : -delta;
 }
 
 function isFreshObservation(iso: string | null | undefined): boolean {
@@ -515,29 +515,24 @@ export function getAvailablePrefectures(): string[] {
 // ─── Bloom status computation ────────────────────────────────────────────────
 
 function computeBloomStatus(city: SakuraCity): string {
-  const now = new Date();
-
   // If we have actual observation data, use it
   if (city.fullBloom.observation) {
-    const fullDate = new Date(city.fullBloom.observation);
-    const daysSinceFull = Math.floor((now.getTime() - fullDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceFull > 10) return "Ended — petals have fallen";
-    if (daysSinceFull > 5) return "Falling — petals scattering";
-    if (daysSinceFull >= 0) return "Full bloom — best viewing!";
+    const fullDelta = daysFromTodayJst(city.fullBloom.observation);
+    if (fullDelta !== null && fullDelta < -10) return "Ended — petals have fallen";
+    if (fullDelta !== null && fullDelta < -5) return "Falling — petals scattering";
+    if (fullDelta !== null && fullDelta <= 0) return "Full bloom — best viewing!";
   }
 
   if (city.bloom.observation && !city.fullBloom.observation) {
-    const bloomDate = new Date(city.bloom.observation);
-    const daysSinceBloom = Math.floor((now.getTime() - bloomDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSinceBloom > 10) return "Likely past full bloom";
-    if (daysSinceBloom > 5) return "Approaching full bloom";
-    if (daysSinceBloom >= 0) return "Blooming";
+    const bloomDelta = daysFromTodayJst(city.bloom.observation);
+    if (bloomDelta !== null && bloomDelta < -10) return "Likely past full bloom";
+    if (bloomDelta !== null && bloomDelta < -5) return "Approaching full bloom";
+    if (bloomDelta !== null && bloomDelta <= 0) return "Blooming";
   }
 
   // Use forecast data
-  const forecastDate = city.bloom.forecast ? new Date(city.bloom.forecast) : null;
-  if (forecastDate) {
-    const daysUntilBloom = Math.floor((forecastDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  const daysUntilBloom = daysFromTodayJst(city.bloom.forecast);
+  if (daysUntilBloom !== null) {
     if (daysUntilBloom > 14) return "Not yet — more than 2 weeks away";
     if (daysUntilBloom > 7) return "Coming soon — 1-2 weeks away";
     if (daysUntilBloom > 0) return `Coming soon — about ${daysUntilBloom} day(s)`;
@@ -550,13 +545,7 @@ function computeBloomStatus(city: SakuraCity): string {
 // ─── Query helpers ───────────────────────────────────────────────────────────
 
 export function formatDate(iso: string | null): string {
-  if (!iso) return "N/A";
-  try {
-    const d = new Date(iso);
-    return `${d.getMonth() + 1}/${d.getDate()}`;
-  } catch {
-    return iso;
-  }
+  return formatMonthDayJst(iso);
 }
 
 export function findCities(forecast: SakuraForecastResult, query: string): SakuraCity[] {
@@ -585,18 +574,16 @@ export function findBestRegions(
   for (const region of forecast.regions) {
     for (const city of region.cities) {
       const fullBloomDate = city.fullBloom.observation
-        ? new Date(city.fullBloom.observation)
+        ? parseDateInputJst(city.fullBloom.observation)
         : city.fullBloom.forecast
-          ? new Date(city.fullBloom.forecast)
+          ? parseDateInputJst(city.fullBloom.forecast)
           : null;
 
       if (!fullBloomDate) continue;
 
       // Best viewing: 2 days before full bloom to 5 days after
-      const windowStart = new Date(fullBloomDate);
-      windowStart.setDate(windowStart.getDate() - 2);
-      const windowEnd = new Date(fullBloomDate);
-      windowEnd.setDate(windowEnd.getDate() + 5);
+      const windowStart = new Date(fullBloomDate.getTime() - 2 * DAY_MS);
+      const windowEnd = new Date(fullBloomDate.getTime() + 5 * DAY_MS);
 
       if (startDate <= windowEnd && endDate >= windowStart) {
         results.push(city);

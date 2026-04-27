@@ -16,6 +16,7 @@ import { pMapSettled } from "./lib/fetch.js";
 import { logger } from "./lib/logger.js";
 import { TTL } from "./lib/cache.js";
 import { JAPAN_BOUNDS, JAPAN_PREFECTURE_COUNT } from "./lib/constants.js";
+import { DATE_RANGE_INPUT_HINT, parseDateRangeInputJst } from "./lib/dates.js";
 
 // ── Minimal shared spot type ──────────────────────────────────────────────────
 interface SpotRecord { lat?: number; lon?: number; name?: string; [key: string]: unknown; }
@@ -116,14 +117,13 @@ export async function handleApiRequest(
       const start = params.get("start");
       const end = params.get("end");
       if (!start || !end) { error(res, "Missing ?start= and ?end= parameters"); return true; }
-      const startDate = new Date(start);
-      const endDate = new Date(end);
-      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-        error(res, "Invalid date format. Use YYYY-MM-DD.");
+      const range = parseDateRangeInputJst(start, end);
+      if (!range) {
+        error(res, `Invalid date format. ${DATE_RANGE_INPUT_HINT}`);
         return true;
       }
       const forecast = await getSakuraForecast();
-      const matches = findBestRegions(forecast, startDate, endDate);
+      const matches = findBestRegions(forecast, range.startDate, range.endDate);
       json(res, { start, end, matches });
       return true;
     }
@@ -285,7 +285,7 @@ export async function handleApiRequest(
 
 // Called at server startup to pre-warm the all-spots cache before the first visitor arrives.
 export async function warmSpotsCache(): Promise<void> {
-  const prefCodes = Array.from({ length: 47 }, (_, i) => String(i + 1).padStart(2, "0"));
+  const prefCodes = Array.from({ length: JAPAN_PREFECTURE_COUNT }, (_, i) => String(i + 1).padStart(2, "0"));
 
   const sakuraResults = await pMapSettled(prefCodes, (code) => getSakuraSpots(code), 5);
   const sakuraSpots: unknown[] = [];
